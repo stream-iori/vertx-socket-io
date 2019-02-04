@@ -6,7 +6,12 @@
 
   <groupId>me.streamis</groupId>
   <artifactId>vertx-socket-io</artifactId>
+  <packaging>pom</packaging>
   <version>0.1.0-SNAPSHOT</version>
+  <modules>
+    <module>engine-io-parser</module>
+    <module>engine-io-server</module>
+  </modules>
 
   <properties>
     <vertx.version>3.5.3</vertx.version>
@@ -47,7 +52,7 @@
       <version>${log4j.version}</version>
       <scope>test</scope>
     </dependency>
-    <!-- Test dependencies -->
+   <!-- Test dependencies -->
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-junit5</artifactId>
