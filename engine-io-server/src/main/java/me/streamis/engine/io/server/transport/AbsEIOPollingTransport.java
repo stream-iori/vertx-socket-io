@@ -63,7 +63,6 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
       request.response().setStatusCode(500).end();
       return;
     }
-    LOGGER.debug("poll request..........");
     this.request = request;
     request.connection().closeHandler(aVoid -> onError(new TransportException("poll connection closed prematurely.")));
     this.writable = true;
@@ -85,7 +84,6 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
       request.response().setStatusCode(500).end();
       return;
     }
-    LOGGER.debug("data request............");
     this.dataRequest = request;
     this.dataRequest.connection().closeHandler(aVoid -> {
       this.dataRequest = null;

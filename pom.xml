@@ -11,6 +11,7 @@
   <modules>
     <module>engine-io-parser</module>
     <module>engine-io-server</module>
+    <module>socket-io-parser</module>
   </modules>
 
   <properties>
