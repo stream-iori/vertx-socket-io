@@ -13,7 +13,7 @@ public enum PacketType {
   static PacketType byteIndexToType(int index) {
     PacketType[] types = PacketType.values();
     if (index > types.length - 1 || index < 0) {
-      throw new EngineIOParserException("unKnow packet type.");
+      throw new EngineIOParserException("unKnow packet type " + index);
     }
     return types[index];
   }

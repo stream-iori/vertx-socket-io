@@ -16,10 +16,10 @@ public class PacketTest {
   @Test
   public void stringEqual() {
     //String
-    String encodePacket = Packet.encodeAsString(new Packet(PacketType.MESSAGE, "test"));
+    String encodePacket = Packet.encodeAsString(new Packet(PacketType.MESSAGE, "test😯"));
     Packet packet = Packet.decodeWithString(encodePacket);
     assertEquals(PacketType.MESSAGE, packet.getType());
-    assertEquals("test", packet.getData());
+    assertEquals("test😯", packet.getData());
 
     //binary
     Buffer encodeBinPacket = Packet.encodeAsBuffer(new Packet(PacketType.MESSAGE, Buffer.buffer("test")));
@@ -36,7 +36,7 @@ public class PacketTest {
 
   @Test
   void decodePayLoad() {
-    List<Packet> packets = Packet.decodePayload("8:4你好，世界!😀1:5");
+    List<Packet> packets = Packet.decodePayload("9:4你好，世界!😀1:5");
     assertEquals(2, packets.size());
     assertEquals(PacketType.MESSAGE, packets.get(0).type);
     assertEquals("你好，世界!😀", packets.get(0).data);
@@ -46,19 +46,19 @@ public class PacketTest {
 
   @Test
   void payLoadCodec() {
-    Packet packet1 = new Packet(PacketType.MESSAGE, "你好，世界!你好");
+    Packet packet1 = new Packet(PacketType.MESSAGE, "H你好😓");
     Packet packet2 = new Packet(PacketType.UPGRADE, "");
-    String str = (String) Packet.encodePayload(false, packet1, packet2);
+    String str = Packet.encodePayload(false, packet1, packet2);
     List<Packet> packets = Packet.decodePayload(str);
     assertEquals(2, packets.size());
     assertEquals(packet1.type, packets.get(0).type);
     assertEquals(packet1.data, packets.get(0).data.toString());
     assertEquals(packet2.type, packets.get(1).type);
 
-    packet1 = new Packet(PacketType.MESSAGE, Buffer.buffer("你好，世界!你好"));
-    packet2 = new Packet(PacketType.UPGRADE, Buffer.buffer());
-    Buffer buff = (Buffer) Packet.encodePayload(true, packet1, packet2);
-    packets = Packet.decodePayload(buff);
+    packet1 = new Packet(PacketType.MESSAGE, Buffer.buffer("你好，世界!你好😓"));
+    packet2 = new Packet(PacketType.UPGRADE, Buffer.buffer(""));
+    Buffer buff = Packet.encodePayLoadAsBuffer(packet1, packet2);
+    packets = Packet.decodePayloadAsBuffer(buff);
     assertEquals(2, packets.size());
     assertEquals(packet1.type, packets.get(0).type);
     assertEquals(packet1.data, packets.get(0).data);

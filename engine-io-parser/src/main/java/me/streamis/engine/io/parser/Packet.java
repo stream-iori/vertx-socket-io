@@ -67,46 +67,87 @@ public class Packet {
     }
   }
 
-  public static Object encodePayload(boolean supportsBinary, Packet... packets) {
+  public static String encodePayload(boolean supportsBinary, Packet... packets) {
     return encodePayload(supportsBinary, Arrays.asList(packets));
   }
 
-  public static Object encodePayload(boolean supportsBinary, List<Packet> packets) {
-    if (supportsBinary) {
-      Buffer result = Buffer.buffer();
-      if (packets.size() == 0) return result;
-      if (packets.get(0).data instanceof String) {
-        StringBuilder resultStr = new StringBuilder();
-        for (Packet packet : packets) {
-          String content = encodeAsString(packet);
-          resultStr
-            .append(content.length())
-            .append(":")
-            .append(content);
-        }
-        return resultStr.toString();
-      } else {
-        for (Packet packet : packets) {
-          Buffer content = encodeAsBuffer(packet);
-          result
-            .appendString(String.valueOf(content.length()))
-            .appendString(":")
-            .appendString(content.toString());
-        }
-        return result;
-      }
-    } else {
-      if (packets.size() == 0) return "0:";
-      StringBuilder resultStr = new StringBuilder();
-      for (Packet packet : packets) {
-        String content = encodeAsString(packet);
-        resultStr
-          .append(content.codePointCount(0, content.length()))
-          .append(":")
-          .append(content);
-      }
-      return resultStr.toString();
+  /**
+   * Encodes multiple messages (payload).
+   *
+   * <length>:data
+   * <p>
+   * Example:
+   * <p>
+   * 11:hello world2:hi
+   * <p>
+   * If any contents are binary, they will be encoded as base64 strings. Base64
+   * encoded strings are marked with a b before the length specifier
+   *
+   * @param supportsBinary
+   * @param packets
+   * @return String
+   */
+  public static String encodePayload(boolean supportsBinary, List<Packet> packets) {
+    if (supportsBinary && packets.size() > 0 && packets.get(0).data instanceof Buffer) {
+      throw new UnsupportedOperationException("please invoke method of Packet.encodePayloadAsBuffer as your packet in buffer.");
     }
+    if (packets.size() == 0) return "0:";
+    StringBuilder resultStr = new StringBuilder();
+    for (Packet packet : packets) {
+      String packetStr = encodeAsString(packet);
+      resultStr.append(packetStr.length() + ":" + packetStr);
+    }
+    return resultStr.toString();
+  }
+
+  public static Buffer encodePayLoadAsBuffer(Packet... packets) {
+    return encodePayLoadAsBuffer(Arrays.asList(packets));
+  }
+
+  /**
+   * Encodes multiple messages (payload) as binary.
+   * <p>
+   * <1 = binary, 0 = string><number from 0-9><number from 0-9>[...]<number
+   * 255><data>
+   * <p>
+   * Example:
+   * 1 3 255 1 2 3, if the binary contents are interpreted as 8 bit integers
+   *
+   * @param List packets
+   * @return Buffer
+   */
+  public static Buffer encodePayLoadAsBuffer(List<Packet> packets) {
+    Buffer result = Buffer.buffer();
+    if (packets.size() == 0) return result;
+    Buffer packetBuffer;
+    for (Packet packet : packets) {
+      if (packet.data instanceof String) {
+        //+1 for pack type + 1 for 255 mark
+        String size = "" + (2 + ((String) packet.data).length());
+        //mark as string
+        packetBuffer = Buffer.buffer().appendByte((byte) 0);
+        //packet size in bytes
+        packetBuffer.appendBytes(size.getBytes());
+        packetBuffer.appendUnsignedByte((short) 255);
+        for (byte aByte : binCodec.encode(packet).getBytes()) {
+          packetBuffer.appendUnsignedByte(aByte);
+        }
+      } else {
+        if (packet.data instanceof Buffer) {
+          //+1 for pack type + 1 for 255 mark
+          String size = "" + (2 + ((Buffer) packet.data).length());
+          //mark as binary
+          packetBuffer = Buffer.buffer().appendByte((byte) 1);
+          packetBuffer.appendBytes(size.getBytes());
+          packetBuffer.appendUnsignedByte((short) 255);
+          packetBuffer.appendBuffer(binCodec.encode(packet));
+        } else {
+          throw new EngineIOParserException("unKnow format of packet.");
+        }
+      }
+      result.appendBuffer(packetBuffer);
+    }
+    return result;
   }
 
 
@@ -120,35 +161,54 @@ public class Packet {
         continue;
       }
       int stringSize = Integer.valueOf(new String(Arrays.copyOfRange(data, contentLengthIndex, i)));
-      int packetStart = i + 1;
-      int packetIndex = 1;
+      int packetStart = ++i, packetLength = 1;
+      if (packetStart + stringSize > data.length)
+        throw new EngineIOParserException("read payload failed, data size larger than packet size");
       while (stringSize > 0 && i < data.length) {
-        if (GuavaUTF8.isWellFormed(data, packetStart, packetIndex++)) stringSize--;
-        i++;
+        if (GuavaUTF8.isWellFormed(data, packetStart, packetLength++)) stringSize--;
       }
+      //packetLength from 1 and one more time ++
+      i += (packetLength - 2);
       if (stringSize > 0) throw new EngineIOParserException("read payload failed:" + new String(data));
-      Packet packet = decodeWithString(new String(Arrays.copyOfRange(data, packetStart, ++i)));
+      int contentEndIndex = i == packetStart ? i + 1 : i;
+      Packet packet = decodeWithString(new String(Arrays.copyOfRange(data, packetStart, contentEndIndex)));
       packets.add(packet);
       contentLengthIndex = i;
     }
     return packets;
   }
 
-  public static List<Packet> decodePayload(Buffer data) {
+  /**
+   * Decodes data when a payload is maybe expected. Strings are decoded by
+   * interpreting each byte as a key code for entries marked to start with 0.
+   * 1 3 255 1 2 3, if the binary contents are interpreted as 8 bit integers
+   *
+   * @param data
+   * @return
+   */
+  public static List<Packet> decodePayloadAsBuffer(Buffer data) {
     if (data == null) throw new EngineIOParserException("payload is empty.");
     List<Packet> packets = new ArrayList<>();
-    for (int i = 1, offset = 0; i < data.length(); ) {
-      if (data.getByte(i) != ':') {
-        i++;
-        continue;
-      }
-      int contentLength = Integer.valueOf(data.getString(offset, i));
-      //skip :
+
+    for (int i = 0, sizeOffset; i < data.length(); ) {
+      boolean isString = data.getByte(i) == 0;
       i++;
-      Packet packet = decodeWithBuffer(data.getBuffer(i, i + contentLength));
-      packets.add(packet);
-      i += contentLength;
-      offset = i;
+      sizeOffset = i; //start of size
+      while (Byte.toUnsignedInt(data.getByte(i)) != 255 && i < data.length()) i++;
+      //now i point to the byte of 255 or the end of data
+      long size = Long.valueOf(new String(data.getBytes(sizeOffset, i)));
+      if (size > Integer.MAX_VALUE || size > i + size + 1)
+        throw new EngineIOParserException("packet size is too long.");
+      i++;// index of content
+      int endIndex = (int) size + i - 1;
+      if (isString) {
+        byte[] content = data.getBytes(i, endIndex);
+        packets.add(binCodec.decode(Buffer.buffer(content)));
+      } else {
+        Buffer content = data.getBuffer(i, endIndex);
+        packets.add(binCodec.decode(content));
+      }
+      i = endIndex;
     }
     return packets;
   }

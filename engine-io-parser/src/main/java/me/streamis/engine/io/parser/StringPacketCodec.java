@@ -11,7 +11,7 @@ class StringPacketCodec implements PacketCodec<String, String> {
   @Override
   public Packet decode(String data) {
     checkLength(data);
-    int index = Integer.valueOf(new String(new byte[]{data.getBytes()[0]}));
+    int index = Integer.valueOf(data.substring(0, 1));
     PacketType packetType = PacketType.byteIndexToType(index);
     String content = "";
     if (data.length() > 1) {
