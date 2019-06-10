@@ -36,11 +36,12 @@ public class Packet {
     return this.data;
   }
 
-  public static Packet decodeWithBuffer(Buffer data) {
+  //TODO Uint8
+  public static Packet decodeAsBuffer(Buffer data) {
     return binCodec.decode(data);
   }
 
-  public static Packet decodeWithString(String data) {
+  public static Packet decodePacket(String data) {
     byte b = data.getBytes()[0];
     if (b == 'b') return b64Codec.decode(Buffer.buffer(data));
     return strCodec.decode(data);
@@ -58,10 +59,13 @@ public class Packet {
    * for String or Base64
    * The data type of packet could be binary or String
    */
-  public static String encodeAsString(Packet packet) {
-    //data is Buffer but target do not supports binary, we should encode as Base64
+  public static String encodePacket(Packet packet, boolean supportsBinary) {
     if (packet.data instanceof Buffer) {
-      return b64Codec.encode(packet);
+      if (supportsBinary) {
+        throw new UnsupportedOperationException("please invoke encodeAsBuffer");
+      } else {
+        return b64Codec.encode(packet);
+      }
     } else {
       return strCodec.encode(packet);
     }
@@ -83,7 +87,6 @@ public class Packet {
    * If any contents are binary, they will be encoded as base64 strings. Base64
    * encoded strings are marked with a b before the length specifier
    *
-   * @param supportsBinary
    * @param packets
    * @return String
    */
@@ -94,8 +97,8 @@ public class Packet {
     if (packets.size() == 0) return "0:";
     StringBuilder resultStr = new StringBuilder();
     for (Packet packet : packets) {
-      String packetStr = encodeAsString(packet);
-      resultStr.append(packetStr.length() + ":" + packetStr);
+      String packetStr = encodePacket(packet, supportsBinary);
+      resultStr.append(packetStr.length()).append(":").append(packetStr);
     }
     return resultStr.toString();
   }
@@ -113,7 +116,7 @@ public class Packet {
    * Example:
    * 1 3 255 1 2 3, if the binary contents are interpreted as 8 bit integers
    *
-   * @param List packets
+   * @param  packets
    * @return Buffer
    */
   public static Buffer encodePayLoadAsBuffer(List<Packet> packets) {
@@ -171,7 +174,7 @@ public class Packet {
       i += (packetLength - 2);
       if (stringSize > 0) throw new EngineIOParserException("read payload failed:" + new String(data));
       int contentEndIndex = i == packetStart ? i + 1 : i;
-      Packet packet = decodeWithString(new String(Arrays.copyOfRange(data, packetStart, contentEndIndex)));
+      Packet packet = decodePacket(new String(Arrays.copyOfRange(data, packetStart, contentEndIndex)));
       packets.add(packet);
       contentLengthIndex = i;
     }

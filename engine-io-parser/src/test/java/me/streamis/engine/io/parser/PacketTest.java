@@ -16,20 +16,20 @@ public class PacketTest {
   @Test
   public void stringEqual() {
     //String
-    String encodePacket = Packet.encodeAsString(new Packet(PacketType.MESSAGE, "test😯"));
-    Packet packet = Packet.decodeWithString(encodePacket);
+    String encodePacket = Packet.encodePacket(new Packet(PacketType.MESSAGE, "test😯"), false);
+    Packet packet = Packet.decodePacket(encodePacket);
     assertEquals(PacketType.MESSAGE, packet.getType());
     assertEquals("test😯", packet.getData());
 
     //binary
     Buffer encodeBinPacket = Packet.encodeAsBuffer(new Packet(PacketType.MESSAGE, Buffer.buffer("test")));
-    packet = Packet.decodeWithBuffer(encodeBinPacket);
+    packet = Packet.decodeAsBuffer(encodeBinPacket);
     assertEquals(PacketType.MESSAGE, packet.getType());
     assertEquals(Buffer.buffer("test"), packet.getData());
 
     //base64
-    String encodeB64Packet = Packet.encodeAsString(new Packet(PacketType.MESSAGE, Buffer.buffer("test")));
-    packet = Packet.decodeWithString(encodeB64Packet);
+    String encodeB64Packet = Packet.encodePacket(new Packet(PacketType.MESSAGE, Buffer.buffer("test")), false);
+    packet = Packet.decodePacket(encodeB64Packet);
     assertEquals(PacketType.MESSAGE, packet.getType());
     assertEquals("test", packet.getData().toString());
   }
