@@ -19,15 +19,15 @@ public class EngineOptions {
   private int maxHttpBufferSize = Integer.MAX_VALUE;
   private String[] allowedCorsOrigins = new String[0];
   private Packet initialPacket;
-
+  private boolean handlePreflightRequest = true;
   private Map<String, List<String>> transports = new HashMap<String, List<String>>() {{
     put(Type.POLLING.name().toLowerCase(), Arrays.asList(Type.WEBSOCKET.name().toLowerCase()));
     put(Type.WEBSOCKET.name().toLowerCase(), new ArrayList<>(0));
   }};
   private boolean allowUpgrades = true;
-  private boolean cookie = false;
+  private String cookie = "io";
   private String cookiePath = "/";
-  private boolean cookieHttpOnly = false;
+  private boolean cookieHttpOnly = true;
   //allowRequest
   //perMessageDeflate
   //httpCompression
@@ -87,7 +87,7 @@ public class EngineOptions {
     return this;
   }
 
-  public EngineOptions setCookie(boolean cookie) {
+  public EngineOptions setCookie(String cookie) {
     this.cookie = cookie;
     return this;
   }
@@ -142,7 +142,7 @@ public class EngineOptions {
     return allowUpgrades;
   }
 
-  public boolean isCookie() {
+  public String getCookie() {
     return cookie;
   }
 
@@ -154,8 +154,13 @@ public class EngineOptions {
     return cookieHttpOnly;
   }
 
+  public boolean isHandlePreflightRequest() {
+    return handlePreflightRequest;
+  }
+
   public EngineOptions toBuild() {
     return this;
   }
+
 
 }

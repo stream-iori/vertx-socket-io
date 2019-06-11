@@ -44,6 +44,11 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
   }
 
   @Override
+  public boolean isHandlesUpgrades() {
+    return false;
+  }
+
+  @Override
   public void onRequest(HttpServerRequest request) {
     if (request.method() == HttpMethod.GET) {
       this.onPollRequest(request);
@@ -66,7 +71,9 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
     this.request = request;
     request.connection().closeHandler(aVoid -> onError(new TransportException("poll connection closed prematurely.")));
     this.writable = true;
-    if (drainHandler != null) drainHandler.handle(null);
+    if (drainHandlers.size() > 0) {
+      drainHandlers.forEach(h -> h.handle(null));
+    }
 
     // if we're still writable but had a pending close, trigger an empty send
     if (this.writable && shouldClose != null) {
@@ -92,8 +99,6 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
 
     this.dataRequest.bodyHandler(data -> {
       boolean isBinary = "application/octet-stream".equals(request.headers().get("content-type"));
-      //TODO maxHttpBufferSize check
-
       this.onData(data, isBinary);
       request.response().putHeader("Content-Type", "text/html");
       if (!isBinary) request.response().putHeader("charset", "utf-8");
@@ -102,26 +107,18 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
     });
   }
 
-  protected HttpServerRequest headers(HttpServerRequest request) {
-    String userAgent = request.getHeader("user-agent");
-    if (userAgent != null && (userAgent.contains(";MSIE") || userAgent.contains("Trident/"))) {
-      request.response().headers().add("X-XSS-Protection", "0");
-    }
-    return request;
-  }
 
-  @Override
   protected void onData(Buffer data, boolean isBinary) {
     List<Packet> packets;
-    if (isBinary) packets = Packet.decodePayload(data);
+    if (isBinary) packets = Packet.decodePayloadAsBuffer(data);
     else packets = Packet.decodePayload(data.toString());
     for (Packet packet : packets) {
-      onPacket(packet);
       if (packet.getType() == PacketType.CLOSE) {
         LOGGER.debug("got xhr close packet.");
         onClose();
         return;
       }
+      onPacket(packet);
     }
   }
 
@@ -149,14 +146,15 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
   }
 
   protected void write(Object data) {
-    String contentType = isSupportsBinary() ? "application/octet-stream" : "text/plain; charset=UTF-8";
+    String contentType = data instanceof Buffer ? "application/octet-stream" : "text/plain; charset=UTF-8";
     HttpServerResponse response = headers(this.request).response().putHeader("Content-Type", contentType).setStatusCode(200);
+    //skip httpCompression
     if (data instanceof Buffer && isSupportsBinary()) {
       response.end((Buffer) data);
     } else {
       response.end((String) data);
     }
-    //data have been write,so cleanup the request which request in GET method.
+    //data have been write,so cleanup the request which in GET method.
     LOGGER.debug("send message." + data);
     this.request = null;
   }
@@ -189,6 +187,14 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
       this.shouldClose = innerClose;
       closeTimeoutTimer.handler(aLong -> innerClose.handle(null));
     }
+  }
+
+  protected HttpServerRequest headers(HttpServerRequest request) {
+    String userAgent = request.getHeader("user-agent");
+    if (userAgent != null && (userAgent.contains(";MSIE") || userAgent.contains("Trident/"))) {
+      request.response().headers().add("X-XSS-Protection", "0");
+    }
+    return request;
   }
 
   @Override

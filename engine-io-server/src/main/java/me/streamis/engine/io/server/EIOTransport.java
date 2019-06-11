@@ -1,6 +1,7 @@
 package me.streamis.engine.io.server;
 
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerRequest;
 import me.streamis.engine.io.parser.Packet;
 
@@ -23,11 +24,17 @@ public interface EIOTransport {
 
   void addErrorHandler(Handler<Throwable> errorHandler);
 
+  void appendHeader(String key, String value);
+
   boolean writable();
 
   boolean supportsFraming();
 
   boolean isSupportsBinary();
+
+  boolean isHandlesUpgrades();
+
+  void setSupportsBinary(boolean support);
 
   void onRequest(HttpServerRequest request);
 

@@ -17,21 +17,22 @@ import java.util.List;
 public class WebSocketEIOTransport extends AbsEIOTransport implements EIOTransport {
 
   private ServerWebSocket webSocket;
+  private boolean supportsBinary;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(WebSocketEIOTransport.class);
 
   public WebSocketEIOTransport(ServerWebSocket webSocket, boolean supportsBinary) {
     super(supportsBinary);
     this.webSocket = webSocket;
-    this.webSocket.binaryMessageHandler(buffer -> this.onData(buffer, true));
-    this.webSocket.textMessageHandler(str -> this.onData(Buffer.buffer(str), false));
+    this.webSocket.textMessageHandler(this::onData);
     this.webSocket.closeHandler(avoid -> onClose());
     this.webSocket.exceptionHandler(this::onError);
     this.writable = true;
   }
 
-  public WebSocketEIOTransport(HttpServerRequest request, boolean supportBinary) {
-    this(request.upgrade(), supportBinary);
+  @Override
+  public void appendHeader(String key, String value) {
+    webSocket.headers().add(key, value);
   }
 
   @Override
@@ -50,16 +51,34 @@ public class WebSocketEIOTransport extends AbsEIOTransport implements EIOTranspo
   }
 
   @Override
+  public boolean isHandlesUpgrades() {
+    return true;
+  }
+
+  @Override
+  public void setSupportsBinary(boolean isSupport) {
+    this.supportsBinary = isSupport;
+  }
+
+  @Override
   public void onRequest(HttpServerRequest request) {
-    //WebSocket don't care HttpServerRequest
+    throw new UnsupportedOperationException("webSocket transport do not need HttpServerRequest.");
   }
 
   @Override
   public void send(List<Packet> packets) {
+    if (packets.size() == 0) return;
     try {
-      for (Packet packet : packets) {
-        writable = false;
-        webSocket.writeTextMessage(Packet.encodeAsString(packet));
+      this.writable = false;
+      boolean isBuffer = packets.get(0).getData() instanceof Buffer;
+      if (isBuffer && supportsBinary) {
+        for (Packet packet : packets) {
+          webSocket.writeBinaryMessage(Packet.encodeAsBuffer(packet));
+        }
+      } else {
+        for (Packet packet : packets) {
+          webSocket.writeTextMessage(Packet.encodePacket(packet, this.supportsBinary));
+        }
       }
     } catch (Throwable e) {
       LOGGER.error("send packet exception", e);

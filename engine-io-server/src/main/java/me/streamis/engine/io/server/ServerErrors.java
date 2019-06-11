@@ -4,25 +4,30 @@ package me.streamis.engine.io.server;
  * Created by stream.
  */
 enum ServerErrors {
-  UNKNOWN_TRANSPORT(0, "Transport unknown"),
-  UNKNOWN_SID(1, "Session ID unknown"),
-  BAD_HANDSHAKE_METHOD(2, "Bad handshake method"),
-  BAD_REQUEST(3, "Bad request"),
-  FORBIDDEN(4, "Forbidden");
+  UNKNOWN_TRANSPORT("Transport unknown"),
+  UNKNOWN_SID("Session ID unknown"),
+  BAD_HANDSHAKE_METHOD("Bad handshake method"),
+  BAD_REQUEST("Bad request"),
+  FORBIDDEN("Forbidden");
 
-  private final int code;
-  private final String message;
+  private String message;
 
-  ServerErrors(int code, String message) {
-    this.code = code;
+  ServerErrors(String message) {
     this.message = message;
   }
 
-  public int getCode() {
-    return code;
+  public String getMessage() {
+    return this.message;
   }
 
-  public String getMessage() {
-    return message;
+  public static boolean isInCodeRange(int code) {
+    return code >= 0 && code <= 4;
+  }
+
+  public static String getMessageByCode(int code) {
+    for (ServerErrors value : ServerErrors.values()) {
+      if (value.ordinal() == code) return value.message;
+    }
+    return null;
   }
 }
