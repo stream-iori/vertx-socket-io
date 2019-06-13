@@ -42,6 +42,10 @@ public class PacketTest {
     assertEquals("你好，世界!😀", packets.get(0).data);
     assertEquals(PacketType.UPGRADE, packets.get(1).type);
     assertEquals("", packets.get(1).data.toString());
+
+    packets = Packet.decodePayload("13:4Hello World!13:4Hello World!");
+    assertEquals(2, packets.size());
+
   }
 
   @Test

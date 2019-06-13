@@ -116,7 +116,7 @@ public class Packet {
    * Example:
    * 1 3 255 1 2 3, if the binary contents are interpreted as 8 bit integers
    *
-   * @param  packets
+   * @param packets
    * @return Buffer
    */
   public static Buffer encodePayLoadAsBuffer(List<Packet> packets) {
@@ -164,17 +164,24 @@ public class Packet {
         continue;
       }
       int stringSize = Integer.valueOf(new String(Arrays.copyOfRange(data, contentLengthIndex, i)));
-      int packetStart = ++i, packetLength = 1;
-      if (packetStart + stringSize > data.length)
+      ++i;
+      int charStartPoint = i, packetStart = i,  charLength = 1;
+      if (charStartPoint + stringSize > data.length)
         throw new EngineIOParserException("read payload failed, data size larger than packet size");
       while (stringSize > 0 && i < data.length) {
-        if (GuavaUTF8.isWellFormed(data, packetStart, packetLength++)) stringSize--;
+        if (GuavaUTF8.isWellFormed(data, charStartPoint, charLength)) {
+          stringSize--;
+          charStartPoint = i;
+          charLength = 1;
+        } else {
+          charLength++;
+          //for utf16 like emoji
+          if (charLength == 4) stringSize--;
+        }
+        i++;
       }
-      //packetLength from 1 and one more time ++
-      i += (packetLength - 2);
       if (stringSize > 0) throw new EngineIOParserException("read payload failed:" + new String(data));
-      int contentEndIndex = i == packetStart ? i + 1 : i;
-      Packet packet = decodePacket(new String(Arrays.copyOfRange(data, packetStart, contentEndIndex)));
+      Packet packet = decodePacket(new String(Arrays.copyOfRange(data, packetStart, i)));
       packets.add(packet);
       contentLengthIndex = i;
     }
