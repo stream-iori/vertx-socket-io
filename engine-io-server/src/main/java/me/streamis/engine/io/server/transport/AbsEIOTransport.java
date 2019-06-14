@@ -18,7 +18,6 @@ public abstract class AbsEIOTransport implements EIOTransport {
   protected Handler<Void> closeHandler;
   protected List<Handler<Throwable>> errorsHandlers = new ArrayList<>();
   protected Handler<Packet> packetHandler;
-  protected Handler<MultiMap> headerHandler;
   protected List<Handler<Void>> drainHandlers = new ArrayList<>();
   protected boolean discarded;
   protected boolean writable;

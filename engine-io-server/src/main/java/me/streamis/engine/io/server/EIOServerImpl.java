@@ -2,16 +2,15 @@ package me.streamis.engine.io.server;
 
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.core.net.NetSocket;
 import me.streamis.engine.io.server.transport.AbsEIOTransport;
+import me.streamis.engine.io.server.transport.PollingJSONTransport;
 import me.streamis.engine.io.server.transport.PollingXHRTransport;
 import me.streamis.engine.io.server.transport.WebSocketEIOTransport;
 
@@ -84,17 +83,6 @@ public class EIOServerImpl implements EIOServer {
       } else {
         httpServerRequestHandler.handle(httpServerRequest);
       }
-
-      //handle webSocket
-      String transport = httpServerRequest.getParam("transport");
-      if (options.getTransports().containsKey("websocket") && transport != null && !transport.equals("websocket")) {
-        httpServer.websocketHandler(webSocket -> {
-          if (check.apply(httpServerRequest)) {
-            //TODO buffer
-            this.handleUpgrade(httpServerRequest, webSocket, null);
-          }
-        });
-      }
     });
     return this;
   }
@@ -107,57 +95,53 @@ public class EIOServerImpl implements EIOServer {
   }
 
   private void handleRequest(HttpServerRequest request) {
-    this.verify(request, false, (serverErrors, isSuccess) -> {
+    this.verify(request, (serverErrors, isSuccess) -> {
       if (!isSuccess) {
         sendError(request, serverErrors.getMessage(), serverErrors.ordinal());
-      }
-      String sid = request.getParam("sid");
-      if (sid != null) {
-        LOGGER.debug("setting new request for existing client");
-        this.clients.get(sid).getTransport().onRequest(request);
       } else {
-        this.handshake(request.getParam("transport"), request);
+        String sid = request.getParam("sid");
+        String transport = request.getParam("transport");
+        if (sid != null) {
+          //check for upgrade.
+          if (options.isAllowUpgrades() && transport != null && transport.equals("websocket") && request.headers().contains("Upgrade")) {
+            handleUpgrade(request);
+          } else {
+            this.clients.get(sid).getTransport().onRequest(request);
+          }
+        } else {
+          this.handshake(transport, request);
+        }
       }
     });
   }
 
-  private void handleUpgrade(HttpServerRequest request, ServerWebSocket webSocket, List<Buffer> tailBuffer) {
-    this.verify(request, true, (serverErrors, isSuccess) -> {
-      if (!isSuccess) {
-        abortConnection(request.netSocket(), serverErrors);
-        return;
-      }
+  private void handleUpgrade(HttpServerRequest request) {
+    if (!EIOTransport.isHandlesUpgrades(request.getParam("transport"))) {
+      LOGGER.debug("transport doesn't handle upgraded requests");
+      request.netSocket().close();
+      return;
+    }
 
-      //TODO tailBuffer
-      //TODO
-      if (options.getTransports().get(request.getParam("transport")) != null) {
-        LOGGER.debug("transport doesn't handle upgraded requests");
-        webSocket.close();
-        return;
-      }
-
-      String id = request.getParam("sid");
-      //TODO close webSocket ,request also be closed?
-      if (id != null) {
-        EIOSocketImpl eioSocket = (EIOSocketImpl) clients.get(id);
-        if (eioSocket == null) {
-          LOGGER.debug("upgrade attempt for closed client");
-          webSocket.close();
-        } else if (((EIOUpgradeSocket) eioSocket).isUpgrading()) {
-          LOGGER.debug("transport has already been trying to upgrade");
-          webSocket.close();
-        } else if (((EIOUpgradeSocket) eioSocket).isUpgraded()) {
-          LOGGER.debug("transport had already been upgraded");
-          webSocket.close();
-        } else {
-          LOGGER.debug("upgrading existing transport");
-          EIOTransport transport = new WebSocketEIOTransport(webSocket, isSupportsBinary(request));
-          ((EIOUpgradeSocket) eioSocket).maybeUpgrade(transport);
-        }
+    String id = request.getParam("sid");
+    if (id != null) {
+      EIOSocketImpl eioSocket = (EIOSocketImpl) clients.get(id);
+      if (eioSocket == null) {
+        LOGGER.debug("upgrade attempt for closed client");
+        abortConnection(request.netSocket(), BAD_REQUEST);
+      } else if (((EIOUpgradeSocket) eioSocket).isUpgrading()) {
+        LOGGER.debug("transport has already been trying to upgrade");
+        abortConnection(request.netSocket(), BAD_REQUEST);
+      } else if (((EIOUpgradeSocket) eioSocket).isUpgraded()) {
+        LOGGER.debug("transport had already been upgraded");
+        abortConnection(request.netSocket(), BAD_REQUEST);
       } else {
-        handshake(request.getParam("transport"), request);
+        LOGGER.debug("upgrading existing transport");
+        EIOTransport transport = new WebSocketEIOTransport(request.upgrade(), isSupportsBinary(request));
+        ((EIOUpgradeSocket) eioSocket).maybeUpgrade(transport);
       }
-    });
+    } else {
+      this.handleRequest(request);
+    }
   }
 
   @Override
@@ -165,15 +149,12 @@ public class EIOServerImpl implements EIOServer {
     return Helper.randomSessionID();
   }
 
-  private void verify(HttpServerRequest request, boolean isUpgrade, BiConsumer<ServerErrors, Boolean> consumer) {
+  private void verify(HttpServerRequest request, BiConsumer<ServerErrors, Boolean> consumer) {
     String transportName = request.getParam("transport");
-    if (transportName != null && options.getTransports().get(transportName) == null) {
+    if (transportName != null && !options.getTransports().containsKey(transportName)) {
       LOGGER.error("unKnow transport " + transportName);
       consumer.accept(UNKNOWN_TRANSPORT, false);
-    }
-
-    if (request.headers().get("Origin") == null) {
-      consumer.accept(BAD_REQUEST, false);
+      return;
     }
 
     String sid = request.getParam("sid");
@@ -183,16 +164,14 @@ public class EIOServerImpl implements EIOServer {
       if (socket == null) {
         LOGGER.error("unKnow session id");
         consumer.accept(UNKNOWN_SID, false);
-      }
-      if (!isUpgrade && !socket.getTransport().name().equals(transportName)) {
-        LOGGER.error("bad request: unexpected transport without upgrade.");
-        consumer.accept(BAD_REQUEST, false);
+        return;
       }
     } else {
       //handshake is GET only
       if (request.method() != HttpMethod.GET) {
         LOGGER.error("bad handshake method.");
         consumer.accept(BAD_HANDSHAKE_METHOD, false);
+        return;
       }
     }
     consumer.accept(null, true);
@@ -211,7 +190,11 @@ public class EIOServerImpl implements EIOServer {
         transport = new WebSocketEIOTransport(request.upgrade(), isSupportsBinary(request));
         break;
       case "polling":
-        transport = new PollingXHRTransport(vertx, false);
+        if (request.getParam("j") != null) {
+          transport = new PollingJSONTransport(vertx, request, false);
+        } else {
+          transport = new PollingXHRTransport(vertx, false);
+        }
         break;
       default:
         sendError(request, ServerErrors.BAD_REQUEST.getMessage(), ServerErrors.BAD_REQUEST.ordinal());
@@ -227,8 +210,7 @@ public class EIOServerImpl implements EIOServer {
     if (options.getCookie() != null) {
       String cookie = String.format("%s=%s; Path=%s; " + (options.isCookieHttpOnly() ? "httpOnly" : ""),
         options.getCookie(), eioSocket.getId(), options.getCookiePath());
-      //TODO listen headers event from transport
-      transport.appendHeader("Set-Cookie", cookie);
+      request.headers().add("Set-Cookie", cookie);
     }
     transport.onRequest(request);
     clients.put(sid, eioSocket);

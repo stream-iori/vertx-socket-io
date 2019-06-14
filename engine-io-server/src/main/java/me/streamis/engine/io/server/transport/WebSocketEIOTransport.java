@@ -31,11 +31,6 @@ public class WebSocketEIOTransport extends AbsEIOTransport implements EIOTranspo
   }
 
   @Override
-  public void appendHeader(String key, String value) {
-    webSocket.headers().add(key, value);
-  }
-
-  @Override
   public boolean writable() {
     return writable;
   }
@@ -51,18 +46,13 @@ public class WebSocketEIOTransport extends AbsEIOTransport implements EIOTranspo
   }
 
   @Override
-  public boolean isHandlesUpgrades() {
-    return true;
-  }
-
-  @Override
   public void setSupportsBinary(boolean isSupport) {
     this.supportsBinary = isSupport;
   }
 
   @Override
   public void onRequest(HttpServerRequest request) {
-    throw new UnsupportedOperationException("webSocket transport do not need HttpServerRequest.");
+    //ignore
   }
 
   @Override
@@ -95,7 +85,7 @@ public class WebSocketEIOTransport extends AbsEIOTransport implements EIOTranspo
 
   @Override
   public String name() {
-    return "websocket";
+    return Type.WEBSOCKET.name().toLowerCase();
   }
 
 }

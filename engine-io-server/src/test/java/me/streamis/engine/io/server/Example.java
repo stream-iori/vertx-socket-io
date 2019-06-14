@@ -4,8 +4,8 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Created by stream.
@@ -14,9 +14,16 @@ public class Example {
   private static final Logger logger = LoggerFactory.getLogger(Example.class);
 
   public static void main(String[] args) {
+    System.setProperty(
+      "vertx.logger-delegate-factory-class-name",
+      "io.vertx.core.logging.SLF4JLogDelegateFactory"
+    );
     Vertx vertx = Vertx.vertx();
 
     Handler<HttpServerRequest> requestHandler = request -> {
+      if (request.path().equals("/favicon.ico")) {
+        request.response().putHeader("Content-Type", "image/x-icon").end();
+      }
       if (request.path().equals("/")) {
         String index = "<html>\n" +
           "    <head>\n" +
@@ -48,7 +55,7 @@ public class Example {
           "                     alert('socket close');\n" +
           "\t             });\n" +
           "\t             for(let i=0;i<totals;i++){\n" +
-          "                     setTimeout(() => socket.send('你好，'+i+'世界!'),10*i);\n" +
+          "                     setTimeout(() => socket.send('hello world!'),100*i);\n" +
           "                 }\n" +
           "             });\n" +
           "         }\n" +
@@ -61,7 +68,7 @@ public class Example {
           "        <br>\n" +
           "        <a href=\"javascript:testConn(null,['websocket'])\" role=\"button\">websocket</a>\n" +
           "        <br>\n" +
-          "        <a href=\"javascript:testConn(null,['polling','websocket'])\" role=\"button\">auto</a>\n" +
+          "        <a href=\"javascript:testConn(null,['polling','websocket'])\" role=\"button\">upgrade</a>\n" +
           "        <br>\n" +
           "    </body>\n" +
           "</html>";

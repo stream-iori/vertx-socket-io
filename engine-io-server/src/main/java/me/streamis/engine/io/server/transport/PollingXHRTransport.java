@@ -17,14 +17,15 @@ public class PollingXHRTransport extends AbsEIOPollingTransport implements EIOTr
   @Override
   public void onRequest(HttpServerRequest request) {
     if (request.method() == HttpMethod.OPTIONS) {
-      headers(request).response().putHeader("Access-Control-Allow-Headers", "Content-Type").setStatusCode(200).end();
+      headers(request);
+      request.response().putHeader("Access-Control-Allow-Headers", "Content-Type").setStatusCode(200);
     } else {
       super.onRequest(request);
     }
   }
 
   @Override
-  protected HttpServerRequest headers(HttpServerRequest request) {
+  protected void headers(HttpServerRequest request) {
     String origin = request.headers().get("Origin");
     if (origin != null && origin.length() > 0) {
       request.response().headers()
@@ -33,6 +34,5 @@ public class PollingXHRTransport extends AbsEIOPollingTransport implements EIOTr
     } else {
       request.response().headers().add("Access-Control-Allow-Origin", "*");
     }
-    return super.headers(request);
   }
 }

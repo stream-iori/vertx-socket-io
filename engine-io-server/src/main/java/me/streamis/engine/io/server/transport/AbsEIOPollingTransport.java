@@ -44,11 +44,6 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
   }
 
   @Override
-  public boolean isHandlesUpgrades() {
-    return false;
-  }
-
-  @Override
   public void onRequest(HttpServerRequest request) {
     if (request.method() == HttpMethod.GET) {
       this.onPollRequest(request);
@@ -63,7 +58,7 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
    * The client sends a request awaiting for us to send data.
    */
   private void onPollRequest(HttpServerRequest request) {
-    if (this.request != null) {
+    if (this.request == request) {
       onError(new TransportException("overlap from client"));
       request.response().setStatusCode(500).end();
       return;
@@ -86,7 +81,7 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
    * The client sends a request with data.
    */
   private void onDataRequest(HttpServerRequest request) {
-    if (this.dataRequest != null) {
+    if (this.dataRequest == request) {
       onError(new TransportException("data request overlap from client."));
       request.response().setStatusCode(500).end();
       return;
@@ -102,7 +97,8 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
       this.onData(data, isBinary);
       request.response().putHeader("Content-Type", "text/html");
       if (!isBinary) request.response().putHeader("charset", "utf-8");
-      headers(request).response().setStatusCode(200).end("ok");
+      headers(request);
+      request.response().setStatusCode(200).end("ok");
       this.dataRequest = null;
     });
   }
@@ -147,12 +143,13 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
 
   protected void write(Object data) {
     String contentType = data instanceof Buffer ? "application/octet-stream" : "text/plain; charset=UTF-8";
-    HttpServerResponse response = headers(this.request).response().putHeader("Content-Type", contentType).setStatusCode(200);
+    headers(this.request);
+    HttpServerResponse response = this.request.response().putHeader("Content-Type", contentType).setStatusCode(200);
     //skip httpCompression
     if (data instanceof Buffer && isSupportsBinary()) {
       response.end((Buffer) data);
     } else {
-      response.end((String) data);
+      response.end(data.toString());
     }
     //data have been write,so cleanup the request which in GET method.
     LOGGER.debug("send message." + data);
@@ -189,17 +186,16 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
     }
   }
 
-  protected HttpServerRequest headers(HttpServerRequest request) {
+  protected void headers(HttpServerRequest request) {
     String userAgent = request.getHeader("user-agent");
     if (userAgent != null && (userAgent.contains(";MSIE") || userAgent.contains("Trident/"))) {
       request.response().headers().add("X-XSS-Protection", "0");
     }
-    return request;
   }
 
   @Override
   public String name() {
-    return "polling";
+    return Type.POLLING.name().toLowerCase();
   }
 
 

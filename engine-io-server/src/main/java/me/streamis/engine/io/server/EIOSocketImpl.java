@@ -13,6 +13,8 @@ import me.streamis.engine.io.server.transport.TransportException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static me.streamis.engine.io.server.State.*;
 
@@ -26,7 +28,7 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
   private EngineOptions options;
   private EIOTransport transport;
   private State state;
-  private List<Packet> packets = new ArrayList<>();
+  private Queue<Packet> packets = new LinkedBlockingQueue<>();
 
   private boolean upgraded = false;
   private boolean upgrading = false;
@@ -41,7 +43,6 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
   private Handler<Packet> packetCreateHandler;
   private Handler<List<Packet>> flushHandler;
   private List<Handler<Void>> drainHandlers = new ArrayList<>();
-  private Handler<EIOTransport> upgradeHandler;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EIOSocketImpl.class);
 
@@ -181,17 +182,19 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
     if (state == CLOSING || state == CLOSED) return;
     // exports packetCreate event
     if (packetCreateHandler != null) packetCreateHandler.handle(packet);
-    packets.add(packet);
+    packets.offer(packet);
     flush();
   }
 
   private void flush() {
-    //TODO why do check writable ?
     if (state == CLOSED || !transport.writable() || packets.size() <= 0) return;
     LOGGER.debug("flushing buffer to transport");
-    if (flushHandler != null) flushHandler.handle(packets);
-    List<Packet> sendPackets = new ArrayList<>(packets);
-    packets.clear();
+    List<Packet> sendPackets = new ArrayList<>();
+    Packet packet;
+    while ((packet = packets.poll()) != null) {
+      sendPackets.add(packet);
+    }
+    if (flushHandler != null) flushHandler.handle(sendPackets);
     this.transport.send(sendPackets);
     drainHandlers.forEach(handler -> handler.handle(null));
   }
@@ -262,7 +265,6 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
     transport.addPacketHandler(packet -> {
       if (packet.getType() == PacketType.PING && packet.getData().toString().equals("probe")) {
         transport.send(new Packet(PacketType.PONG, "probe"));
-        //TODO emit.upgrading
         vertx.cancelTimer(checkIntervalTimer);
         checkIntervalTimer = vertx.setTimer(100L, aLong -> {
           if (this.transport.name().equals("polling") && this.transport.writable()) {
@@ -277,8 +279,7 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
         this.upgraded = true;
         this.cleanTransport();
         this.setTransport(transport);
-        if (upgradeHandler != null)
-          this.upgradeHandler.handle(transport);
+        //we skip upgrade notify.
         this.setPingTimeout();
         this.flush();
         if (state == CLOSING) {
@@ -291,11 +292,6 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
     });
     transport.addCloseHandler(aVoid -> onError.handle(new TransportException("transport closed.")));
     transport.addErrorHandler(onError);
-  }
-
-  @Override
-  public void upgradeHandler(Handler<EIOTransport> handler) {
-    this.upgradeHandler = handler;
   }
 
   @Override
