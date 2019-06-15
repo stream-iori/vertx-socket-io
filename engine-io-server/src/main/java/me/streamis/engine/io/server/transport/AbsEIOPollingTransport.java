@@ -25,8 +25,8 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
   private Vertx vertx;
   private Handler<Void> shouldClose;
 
-  private HttpServerRequest request;
-  private HttpServerRequest dataRequest;
+  protected HttpServerRequest request;
+  protected HttpServerRequest dataRequest;
 
   AbsEIOPollingTransport(Vertx vertx, boolean supportsBinary) {
     super(supportsBinary);
