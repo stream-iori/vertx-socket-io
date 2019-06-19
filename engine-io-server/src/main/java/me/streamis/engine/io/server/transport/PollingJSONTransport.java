@@ -3,6 +3,7 @@ package me.streamis.engine.io.server.transport;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import me.streamis.engine.io.server.EIOTransport;
 
@@ -44,7 +45,9 @@ public class PollingJSONTransport extends AbsEIOPollingTransport implements EIOT
 
   @Override
   protected void write(Object data) {
-    String content = data.toString().replaceAll("\"", "\\\\\"");
+    //json.stringify
+    String content = Json.encode(data.toString());
+    content = content.substring(1, content.length() - 1);
     String jsonStr = head + content
       .replaceAll("\\\\u2028", "\\\\\\\\u2028")
       .replaceAll("\\\\u2029", "\\\\\\\\u2029") + "\");";

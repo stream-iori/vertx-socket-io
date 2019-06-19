@@ -15,7 +15,6 @@
     <dependency>
       <groupId>me.streamis</groupId>
       <artifactId>engine-io-parser</artifactId>
-      <version>${project.version}</version>
     </dependency>
   </dependencies>
 
