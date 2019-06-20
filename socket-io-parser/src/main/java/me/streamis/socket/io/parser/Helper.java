@@ -6,6 +6,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
 import java.io.IOException;
+import java.util.Objects;
 
 
 class Helper {
@@ -39,5 +40,15 @@ class Helper {
 
   static String stringify(Object data) {
     return "\"" + data + "\"";
+  }
+
+  static String deStringify(Object data) {
+    Objects.nonNull(data);
+    String dataStr = (String) data;
+    if (dataStr.length() >= 2) {
+      return dataStr.substring(1, dataStr.length() - 1);
+    } else {
+      return dataStr;
+    }
   }
 }
