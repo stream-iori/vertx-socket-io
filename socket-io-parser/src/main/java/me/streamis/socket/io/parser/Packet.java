@@ -16,13 +16,9 @@ public class Packet {
   }
 
   PacketType type;
-
   String namespace = "/";
   long id;
   int attachments;
-
-  //data type , 0 is string and 1 is buffer
-  byte dataType = 0;
   Object data;
 
   public PacketType getType() {

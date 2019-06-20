@@ -1,6 +1,5 @@
 package me.streamis.socket.io.parser;
 
-import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -84,7 +83,6 @@ public class PacketTest {
     packet.setData("Unauthorized");
     assertPacketAsString(packet, testContext);
 
-    //TODO bad binary
     String address = UUID.randomUUID().toString();
     MessageProducer<Packet> emit = packetEventBus.publisher(address);
     Parser.Decode decode = new Parser.Decode(emit);
