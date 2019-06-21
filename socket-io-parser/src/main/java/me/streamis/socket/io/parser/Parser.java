@@ -11,11 +11,11 @@ import static me.streamis.socket.io.parser.Packet.PacketType.*;
 
 public class Parser {
 
-  public static class Decode {
+  public static class Decoder {
     private MessageProducer<Packet> emit;
     private ReConstructor reConstructor = null;
 
-    public Decode(MessageProducer<Packet> emit) {
+    public Decoder(MessageProducer<Packet> emit) {
       this.emit = emit;
     }
 

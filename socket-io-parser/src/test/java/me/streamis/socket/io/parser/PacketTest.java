@@ -85,7 +85,7 @@ public class PacketTest {
 
     String address = UUID.randomUUID().toString();
     MessageProducer<Packet> emit = packetEventBus.publisher(address);
-    Parser.Decode decode = new Parser.Decode(emit);
+    Parser.Decoder decoder = new Parser.Decoder(emit);
 
     packetEventBus.localConsumer(address, (Handler<Message<Packet>>) packetMessage -> {
       Packet decodedPacket = packetMessage.body();
@@ -93,7 +93,7 @@ public class PacketTest {
       assertEquals("parser error: invalid payload", decodedPacket.getData());
       testContext.completeNow();
     });
-    decode.add("442[\"some\", \"data\"");
+    decoder.add("442[\"some\", \"data\"");
 
     assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
   }
@@ -133,7 +133,7 @@ public class PacketTest {
     //event bus address should be socket id
     String address = UUID.randomUUID().toString();
     MessageProducer<Packet> emit = packetEventBus.publisher(address);
-    Parser.Decode decode = new Parser.Decode(emit);
+    Parser.Decoder decoder = new Parser.Decoder(emit);
 
     packetEventBus.localConsumer(address, (Handler<Message<Packet>>) packetMessage -> {
       Packet decodedPacket = packetMessage.body();
@@ -146,7 +146,7 @@ public class PacketTest {
       });
     }).completionHandler(event -> {
       if (event.succeeded()) {
-        decode.add(encodeData);
+        decoder.add(encodeData);
       } else {
         testContext.failNow(event.cause());
       }
@@ -161,7 +161,7 @@ public class PacketTest {
 
     String address = UUID.randomUUID().toString();
     MessageProducer<Packet> emit = packetEventBus.publisher(address);
-    Parser.Decode decode = new Parser.Decode(emit);
+    Parser.Decoder decoder = new Parser.Decoder(emit);
 
     packetEventBus.localConsumer(address, (Handler<Message<Packet>>) packetMessage -> {
       Packet decodedPacket = packetMessage.body();
@@ -174,7 +174,7 @@ public class PacketTest {
       });
     }).completionHandler(event -> {
       if (event.succeeded()) {
-        encodedPackets.forEach(decode::add);
+        encodedPackets.forEach(decoder::add);
       } else {
         testContext.failNow(event.cause());
       }
