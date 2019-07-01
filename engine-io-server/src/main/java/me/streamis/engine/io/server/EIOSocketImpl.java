@@ -37,11 +37,12 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
   private long upgradeTimeoutTimer;
   private long pingTimeoutTimer;
 
-  private List<Handler<Throwable>> closeHandlers = new ArrayList<>();
+  private List<Handler<String>> closeHandlers = new ArrayList<>();
   private Handler<Packet> packetHandler;
   private Handler<Object> messageHandler;
   private Handler<Packet> packetCreateHandler;
   private Handler<List<Packet>> flushHandler;
+  private Handler<Throwable> errorHandler;
   private List<Handler<Void>> drainHandlers = new ArrayList<>();
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EIOSocketImpl.class);
@@ -59,8 +60,19 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
   }
 
   @Override
-  public EIOSocket closeHandler(Handler<Throwable> handler) {
+  public State getState() {
+    return state;
+  }
+
+  @Override
+  public EIOSocket closeHandler(Handler<String> handler) {
     this.closeHandlers.add(handler);
+    return this;
+  }
+
+  @Override
+  public EIOSocket errorHandler(Handler<Throwable> handler) {
+    this.errorHandler = handler;
     return this;
   }
 
@@ -133,7 +145,7 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
     this.transport.addErrorHandler(this::onError);
     this.transport.addPacketHandler(this::onPacket);
     this.transport.addDrainHandler(aVoid -> this.flush());
-    this.transport.addCloseHandler(aVoid -> this.onClose(new TransportException("transport close")));
+    this.transport.addCloseHandler(aVoid -> this.onClose("transport close"));
   }
 
   private void onOpen() {
@@ -155,7 +167,7 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
    */
   private void onError(Throwable exception) {
     LOGGER.debug(id + " transport error.");
-    this.onClose(exception);
+    this.onClose(exception.getMessage());
   }
 
   private void onPacket(Packet packet) {
@@ -202,7 +214,7 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
   private void setPingTimeout() {
     vertx.cancelTimer(pingTimeoutTimer);
     pingTimeoutTimer = vertx.setTimer(options.getPingInterval() + options.getPingTimeout(),
-      aLong -> onClose(new EngineIOException("ping timeout")));
+      aLong -> onClose("ping timeout"));
   }
 
   private List<String> getAvailableUpgrades() {
@@ -214,21 +226,21 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
    * Possible reasons: `ping timeout`, `client error`, `parse error`,
    * `transport error`, `server close`, `transport close`
    */
-  private void onClose(Throwable reason) {
+  private void onClose(String reason) {
     if (CLOSED == this.state) return;
     this.state = CLOSED;
     vertx.cancelTimer(pingTimeoutTimer);
     vertx.cancelTimer(checkIntervalTimer);
     vertx.cancelTimer(upgradeTimeoutTimer);
     cleanTransport();
-    for (Handler<Throwable> handler : closeHandlers) {
+    for (Handler<String> handler : closeHandlers) {
       handler.handle(reason);
     }
   }
 
   private void closeTransport(boolean discard) {
     if (discard) this.transport.discard();
-    this.transport.close(aVoid -> onClose(new TransportException("forced close")));
+    this.transport.close(aVoid -> onClose("forced close"));
   }
 
   /**
@@ -247,7 +259,7 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
       upgrading = false;
       vertx.cancelTimer(checkIntervalTimer);
       vertx.cancelTimer(upgradeTimeoutTimer);
-      closeHandlers.add(this::onError);
+      closeHandlers.add(reason -> this.onError(new TransportException(reason)));
     };
     this.upgrading = true;
     upgradeTimeoutTimer = vertx.setTimer(options.getUpgradeTimeout(), aLong -> {
@@ -283,7 +295,7 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
         this.setPingTimeout();
         this.flush();
         if (state == CLOSING) {
-          transport.close(aVoid -> this.onClose(new TransportException("force close.")));
+          transport.close(aVoid -> this.onClose("force close."));
         }
       } else {
         cleanup.handle(null);

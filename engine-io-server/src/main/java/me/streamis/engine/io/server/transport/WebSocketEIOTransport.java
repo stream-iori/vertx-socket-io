@@ -17,6 +17,7 @@ import java.util.List;
 public class WebSocketEIOTransport extends AbsEIOTransport implements EIOTransport {
 
   private ServerWebSocket webSocket;
+  private HttpServerRequest request;
   private boolean supportsBinary;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(WebSocketEIOTransport.class);
@@ -52,7 +53,12 @@ public class WebSocketEIOTransport extends AbsEIOTransport implements EIOTranspo
 
   @Override
   public void onRequest(HttpServerRequest request) {
-    //ignore
+    this.request = request;
+  }
+
+  @Override
+  public HttpServerRequest getRequest() {
+    return this.request;
   }
 
   @Override

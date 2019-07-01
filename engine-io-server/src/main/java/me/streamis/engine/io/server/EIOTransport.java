@@ -1,15 +1,11 @@
 package me.streamis.engine.io.server;
 
 import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpServerRequest;
 import me.streamis.engine.io.parser.Packet;
-import me.streamis.engine.io.server.transport.PollingXHRTransport;
 
 import java.util.Arrays;
 import java.util.List;
-
-import static me.streamis.engine.io.server.EIOTransport.Type.*;
 
 /**
  * Created by stream.
@@ -47,6 +43,8 @@ public interface EIOTransport {
   void setSupportsBinary(boolean support);
 
   void onRequest(HttpServerRequest request);
+
+  HttpServerRequest getRequest();
 
   void setSid(String sid);
 

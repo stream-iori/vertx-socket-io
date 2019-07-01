@@ -14,9 +14,19 @@ import java.util.List;
 public interface EIOSocket extends Shareable {
 
   /**
+   * get current state
+   */
+  State getState();
+
+  /**
    * Fired when the client is disconnected.
    */
-  EIOSocket closeHandler(Handler<Throwable> handler);
+  EIOSocket closeHandler(Handler<String> handler);
+
+  /**
+   * Fired when the client get a error;
+   */
+  EIOSocket errorHandler(Handler<Throwable> handler);
 
   /**
    * Fired when the client sends a message.

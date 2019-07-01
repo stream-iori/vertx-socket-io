@@ -13,7 +13,7 @@ import java.util.Map;
 /**
  * Created by stream.
  */
-interface EIOServer {
+public interface EIOServer {
 
   //Events
   EIOServer connectionHandler(Handler<EIOSocket> handler);

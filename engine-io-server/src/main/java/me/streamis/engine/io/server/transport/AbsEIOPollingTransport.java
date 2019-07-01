@@ -54,6 +54,11 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
     }
   }
 
+  @Override
+  public HttpServerRequest getRequest() {
+    return this.request;
+  }
+
   /**
    * The client sends a request awaiting for us to send data.
    */

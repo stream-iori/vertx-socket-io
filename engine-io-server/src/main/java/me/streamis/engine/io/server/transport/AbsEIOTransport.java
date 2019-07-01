@@ -2,6 +2,7 @@ package me.streamis.engine.io.server.transport;
 
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
+import io.vertx.core.http.HttpServerRequest;
 import me.streamis.engine.io.parser.Packet;
 import me.streamis.engine.io.server.EIOTransport;
 import me.streamis.engine.io.server.State;
