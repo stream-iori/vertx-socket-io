@@ -68,9 +68,8 @@ public class EIOServerImpl implements EIOServer {
 
 
   @Override
-  public EIOServer attach(HttpServer httpServer, Handler<HttpServerRequest> httpServerRequestHandler, EngineOptions options) {
-    //TODO format path
-    String path = options.getPath();
+  public EIOServer attach(HttpServer httpServer, Handler<HttpServerRequest> httpServerRequestHandler) {
+    String path = this.options.getPath() + "/";
 
     Function<HttpServerRequest, Boolean> check = request -> {
       if (request.method() == HttpMethod.OPTIONS && !options.isHandlePreflightRequest()) return false;

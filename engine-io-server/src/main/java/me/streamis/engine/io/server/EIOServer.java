@@ -34,11 +34,7 @@ public interface EIOServer {
    */
   EIOServer close();
 
-  EIOServer attach(HttpServer httpServer, Handler<HttpServerRequest> httpServerRequestHandler, EngineOptions options);
-
-  default EIOServer attach(HttpServer httpServer, Handler<HttpServerRequest> httpServerRequestHandler) {
-    return attach(httpServer, httpServerRequestHandler, new EngineOptions().toBuild());
-  }
+  EIOServer attach(HttpServer httpServer, Handler<HttpServerRequest> httpServerRequestHandler);
 
   String generateId();
 }

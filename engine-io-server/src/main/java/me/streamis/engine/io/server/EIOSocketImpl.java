@@ -157,7 +157,10 @@ public class EIOSocketImpl implements EIOSocket, EIOUpgradeSocket {
       .put("pingTimeout", options.getPingTimeout());
     LOGGER.debug("open packet is " + openPacketData);
     this.sendPacket(new Packet(PacketType.OPEN, openPacketData.encode()));
-    if (options.getInitialPacket() != null) this.sendPacket(options.getInitialPacket());
+    if (options.getInitialPacket() != null) {
+      Packet packet = new Packet(PacketType.MESSAGE, options.getInitialPacket());
+      this.sendPacket(packet);
+    }
     this.setPingTimeout();
   }
 

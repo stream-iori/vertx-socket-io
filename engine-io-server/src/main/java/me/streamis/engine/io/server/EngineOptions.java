@@ -18,7 +18,7 @@ public class EngineOptions {
   private String path = "/engine.io/";
   private int maxHttpBufferSize = Integer.MAX_VALUE;
   private String[] allowedCorsOrigins = new String[0];
-  private Packet initialPacket;
+  private String initialPacket;
   private boolean handlePreflightRequest = true;
   private Map<String, List<String>> transports = new HashMap<String, List<String>>() {{
     put(Type.POLLING.name().toLowerCase(), Arrays.asList(Type.WEBSOCKET.name().toLowerCase()));
@@ -56,14 +56,13 @@ public class EngineOptions {
     return this;
   }
 
-  public EngineOptions setInitialPacket(Packet initialPacket) {
-    if (initialPacket != null) {
-      if ((initialPacket.getType() == null) || initialPacket.getType() != PacketType.MESSAGE) {
-        throw new IllegalArgumentException("Initial packet must be a message packet.");
-      }
-      if (initialPacket.getData() == null) throw new IllegalArgumentException("Initial packet data must not be null.");
-      this.initialPacket = new Packet(initialPacket.getType(), initialPacket.getData());
-    }
+  public EngineOptions setPath(String path) {
+    this.path = path;
+    return this;
+  }
+
+  public EngineOptions setInitialPacket(String initialPacket) {
+    this.initialPacket = initialPacket;
     return this;
   }
 
@@ -118,7 +117,7 @@ public class EngineOptions {
     return allowedCorsOrigins;
   }
 
-  public Packet getInitialPacket() {
+  public String getInitialPacket() {
     return initialPacket;
   }
 

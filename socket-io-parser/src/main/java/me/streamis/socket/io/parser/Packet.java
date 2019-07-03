@@ -1,9 +1,11 @@
 package me.streamis.socket.io.parser;
 
-import java.util.Objects;
+import io.vertx.core.json.JsonObject;
+
+import java.util.*;
 
 
-public class Packet {
+public class Packet<T> {
 
   public static final int protocol = 4;
 
@@ -15,11 +17,23 @@ public class Packet {
     }
   }
 
-  PacketType type;
-  String namespace = "/";
-  long id;
-  int attachments;
-  Object data;
+  public Packet() {
+  }
+
+  public Packet(PacketType type) {
+    this.type = type;
+  }
+
+  public Packet(PacketType type, T data) {
+    this.type = type;
+    this.data = data;
+  }
+
+  private PacketType type;
+  private String namespace = "/";
+  private int id = -1;
+  private int attachments;
+  private T data;
 
   public PacketType getType() {
     return type;
@@ -37,11 +51,11 @@ public class Packet {
     this.namespace = namespace;
   }
 
-  public long getId() {
+  public int getId() {
     return id;
   }
 
-  public void setId(long id) {
+  public void setId(int id) {
     this.id = id;
   }
 
@@ -57,7 +71,7 @@ public class Packet {
     return data;
   }
 
-  public void setData(Object data) {
+  public void setData(T data) {
     this.data = data;
   }
 

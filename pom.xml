@@ -34,6 +34,12 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>io.socket</groupId>
+        <artifactId>socket.io-client</artifactId>
+        <version>1.0.0</version>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -92,6 +98,7 @@
       <version>${junit-jupiter.version}</version>
       <scope>test</scope>
     </dependency>
+
   </dependencies>
 
   <build>

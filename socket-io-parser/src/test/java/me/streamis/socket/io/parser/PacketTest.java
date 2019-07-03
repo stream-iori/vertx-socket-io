@@ -1,11 +1,5 @@
 package me.streamis.socket.io.parser;
 
-import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.EventBus;
-import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.junit5.VertxExtension;
@@ -15,27 +9,26 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static me.streamis.socket.io.parser.Packet.PacketType.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static me.streamis.socket.io.parser.Packet.PacketType.BINARY_ACK;
+import static me.streamis.socket.io.parser.Packet.PacketType.BINARY_EVENT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
 @ExtendWith(VertxExtension.class)
 public class PacketTest {
 
-  private Vertx vertx;
-  private EventBus packetEventBus;
+  private static IOParser.Encoder encoder = new IOParser.Encoder();
 
   @BeforeEach
   public void setup() {
-    vertx = Vertx.vertx();
-    packetEventBus = vertx.eventBus();
-    packetEventBus.registerDefaultCodec(Packet.class, new PacketLocalMessageCodec());
   }
 
   @Test
@@ -45,7 +38,7 @@ public class PacketTest {
     Packet packet = new Packet();
     packet.setType(PacketType.EVENT);
     packet.setData("test-packet");
-    packet.setId(13L);
+    packet.setId(13);
     assertPacketAsString(packet, testContext);
 
     packet = new Packet();
@@ -65,14 +58,21 @@ public class PacketTest {
 
     packet = new Packet();
     packet.setType(PacketType.EVENT);
-    packet.setId(1L);
+    packet.setId(1);
     packet.setNamespace("/test");
     packet.setData(new JsonArray().add("a").add(1).add(new JsonObject()));
     assertPacketAsString(packet, testContext);
 
     packet = new Packet();
+    packet.setType(PacketType.EVENT);
+    packet.setId(2);
+    packet.setNamespace("/test");
+    packet.setData(new JsonObject().put("say", "hello"));
+    assertPacketAsString(packet, testContext);
+
+    packet = new Packet();
     packet.setType(PacketType.ACK);
-    packet.setId(123L);
+    packet.setId(123);
     packet.setNamespace("/");
     packet.setData(new JsonArray().add("a").add(1).add(new JsonObject()));
     assertPacketAsString(packet, testContext);
@@ -83,100 +83,96 @@ public class PacketTest {
     packet.setData("Unauthorized");
     assertPacketAsString(packet, testContext);
 
-    String address = UUID.randomUUID().toString();
-    MessageProducer<Packet> emit = packetEventBus.publisher(address);
-    Parser.Decoder decoder = new Parser.Decoder(emit);
-
-    packetEventBus.localConsumer(address, (Handler<Message<Packet>>) packetMessage -> {
-      Packet decodedPacket = packetMessage.body();
-      assertEquals(PacketType.ERROR, decodedPacket.getType());
-      assertEquals("parser error: invalid payload", decodedPacket.getData());
+    IOParser.Decoder decoder = new IOParser.Decoder();
+    decoder.onDecoded(newPacket -> {
+      assertEquals(PacketType.ERROR, newPacket.getType());
       testContext.completeNow();
     });
     decoder.add("442[\"some\", \"data\"");
-
     assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
   }
 
   @Test
   public void encodeAndDecodeInBinary() throws InterruptedException {
     VertxTestContext testContext = new VertxTestContext();
-    Packet packet = new Packet();
+    Packet<byte[]> packet = new Packet();
     packet.setType(BINARY_EVENT);
     packet.setId(23);
     packet.setNamespace("/cool");
-    List<Object> data = new ArrayList<>(2);
-    data.add("a");
-    data.add(Buffer.buffer().appendString("abc", "utf8"));
-    packet.setData(data);
+    packet.setData("abc".getBytes(Charset.forName("UTF-8")));
     assertPacketAsBinary(packet, testContext);
 
-    packet = new Packet();
+    packet = new Packet<>();
     packet.setType(BINARY_ACK);
     packet.setId(127);
     packet.setNamespace("/back");
-    data = new ArrayList<>(3);
-    data.add("a");
-    data.add(Buffer.buffer().appendString("xxx", "utf8"));
-    data.add(new JsonObject());
-    packet.setData(data);
+    packet.setData(new byte[2]);
     assertPacketAsBinary(packet, testContext);
 
     assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
   }
 
+  @Test
+  public void encodeAndDecodeInBinaryWithJson() throws InterruptedException {
+    VertxTestContext testContext = new VertxTestContext();
+    Packet<Map<String, Object>> packet = new Packet<>(BINARY_EVENT);
+    Map<String, Object> data = new HashMap<>();
+    data.put("a", "hi");
+    data.put("b", "why".getBytes(Charset.forName("UTF-8")));
+    packet.setData(data);
+    packet.setId(999);
+    packet.setNamespace("/deep");
+    assertPacketAsBinary(packet, testContext);
+    assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
+  }
+
+  @Test
+  public void encodeBinaryAckWithByteArray() throws InterruptedException {
+    VertxTestContext testContext = new VertxTestContext();
+    List<Object> data = new ArrayList<>();
+    data.add("a");
+    data.add("xxx".getBytes(Charset.forName("UTF-8")));
+    data.add(new JsonObject());
+    Packet<List> packet = new Packet<>(BINARY_ACK);
+    packet.setData(data);
+    packet.setId(127);
+    packet.setNamespace("/back");
+    assertPacketAsBinary(packet, testContext);
+    assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
+  }
 
 
   private void assertPacketAsString(Packet packet, VertxTestContext testContext) {
-    String encodeData = Parser.encodeAsString(packet);
-
-    //event bus address should be socket id
-    String address = UUID.randomUUID().toString();
-    MessageProducer<Packet> emit = packetEventBus.publisher(address);
-    Parser.Decoder decoder = new Parser.Decoder(emit);
-
-    packetEventBus.localConsumer(address, (Handler<Message<Packet>>) packetMessage -> {
-      Packet decodedPacket = packetMessage.body();
-      testContext.verify(() -> {
-        assertPacketMetadata(packet, decodedPacket);
-        assertEquals(packet.getAttachments(), decodedPacket.getAttachments());
-        assertEquals(packet.getData() != null ? Helper.stringify(packet.getData()) : null,
-          decodedPacket.getData());
+    encoder.encode(packet, encodeData -> {
+      Parser.Decoder decoder = new IOParser.Decoder();
+      decoder.onDecoded(newPacket -> {
+        assertPacketMetadata(packet, newPacket);
+        assertEquals(packet.getData(), newPacket.getData());
         testContext.completeNow();
       });
-    }).completionHandler(event -> {
-      if (event.succeeded()) {
-        decoder.add(encodeData);
-      } else {
-        testContext.failNow(event.cause());
-      }
+      decoder.add((String) encodeData[0]);
     });
   }
 
   private void assertPacketAsBinary(Packet packet, VertxTestContext testContext) {
-    Packet originalPacket = new Packet();
-    originalPacket.setData(packet.getData());
-
-    List<Object> encodedPackets = Parser.encodeAsBinary(packet);
-
-    String address = UUID.randomUUID().toString();
-    MessageProducer<Packet> emit = packetEventBus.publisher(address);
-    Parser.Decoder decoder = new Parser.Decoder(emit);
-
-    packetEventBus.localConsumer(address, (Handler<Message<Packet>>) packetMessage -> {
-      Packet decodedPacket = packetMessage.body();
-      testContext.verify(() -> {
+    final Object originalData = packet.getData();
+    encoder.encode(packet, encodedData -> {
+      Parser.Decoder decoder = new IOParser.Decoder();
+      decoder.onDecoded(newPacket -> {
+        packet.setData(originalData);
         packet.setAttachments(-1);
-        packet.setData(originalPacket.getData());
-        assertPacketMetadata(packet, decodedPacket);
-        assertEquals(packet.getData(), decodedPacket.getData(), "should be equal " + packet.getData() + " != " + decodedPacket.getData());
+        assertPacketMetadata(packet, newPacket);
+        if (originalData instanceof Map) {
+          assertEquals(((Map) originalData).size(), ((Map) newPacket.getData()).size());
+        } else if (originalData instanceof List) {
+          assertEquals(((List) originalData).size(), ((List) newPacket.getData()).size());
+        }
         testContext.completeNow();
       });
-    }).completionHandler(event -> {
-      if (event.succeeded()) {
-        encodedPackets.forEach(decoder::add);
-      } else {
-        testContext.failNow(event.cause());
+
+      for (Object p : encodedData) {
+        if (p instanceof String) decoder.add((String) p);
+        else if (p instanceof byte[]) decoder.add((byte[]) p);
       }
     });
   }
@@ -187,6 +183,5 @@ public class PacketTest {
     assertThat(p1.getNamespace()).isEqualTo(p2.getNamespace());
     assertThat(p1.getAttachments()).isEqualTo(p2.getAttachments());
   }
-
 
 }
