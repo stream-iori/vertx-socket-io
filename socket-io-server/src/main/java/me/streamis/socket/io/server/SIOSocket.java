@@ -1,6 +1,7 @@
 package me.streamis.socket.io.server;
 
 import io.vertx.core.Handler;
+import me.streamis.socket.io.parser.Packet;
 
 public interface SIOSocket extends Emitter {
 
@@ -18,7 +19,13 @@ public interface SIOSocket extends Emitter {
    */
   SIOSocket disconnect(boolean close);
 
+  SIOSocket onDisconnect(Handler<String> disconnectHandler);
+
   SIOSocket onConnect();
+
+  void packet(Packet packet);
+
+  SIOSocket broadcast(String event, Object... args);
 
   default Emitter send(Object... args) {
     return this.emit("message", args);

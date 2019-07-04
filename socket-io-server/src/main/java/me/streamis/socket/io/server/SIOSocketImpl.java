@@ -23,7 +23,6 @@ public class SIOSocketImpl implements SIOSocket {
   private Client client;
   private SIOServer server;
   private Handshake handshake;
-  private MessageConsumer<Packet> packetConsumer;
   private Handler<String> disconnectHandler;
   private Map<String, String> rooms;
   private Set<String> roomSet;
@@ -35,6 +34,8 @@ public class SIOSocketImpl implements SIOSocket {
   private boolean disconnected;
 
   List<Handler<Throwable>> errorHandlers = new ArrayList<>();
+
+  //
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SIOSocketImpl.class);
   static Set<String> blackEvents = new HashSet<String>() {{
@@ -100,6 +101,12 @@ public class SIOSocketImpl implements SIOSocket {
   }
 
   @Override
+  public SIOSocket onDisconnect(Handler<String> disconnectHandler) {
+    this.disconnectHandler = disconnectHandler;
+    return this;
+  }
+
+  @Override
   public SIOSocket to(String roomName) {
     if (!roomSet.contains(roomName)) roomSet.add(roomName);
     return this;
@@ -143,7 +150,8 @@ public class SIOSocketImpl implements SIOSocket {
    *
    * @param packet
    */
-  void packet(Packet packet) {
+  @Override
+  public void packet(Packet packet) {
     packet.setNamespace(this.namespace.getName());
     this.client.packet(packet);
   }
@@ -158,6 +166,20 @@ public class SIOSocketImpl implements SIOSocket {
     } else {
       this.packet(new Packet(Packet.PacketType.CONNECT));
     }
+    return this;
+  }
+
+  @Override
+  public SIOSocket broadcast(String event, Object... args) {
+    ((NamespaceImpl) this.namespace).connected.values().forEach(sioSocket -> {
+      if (!sioSocket.id().equals(id)) {
+        //TODO binary check
+        JsonArray data = new JsonArray().add(event);
+        for (Object arg : args) data.add(arg);
+        Packet packet = new Packet(Packet.PacketType.EVENT, data);
+        sioSocket.packet(packet);
+      }
+    });
     return this;
   }
 

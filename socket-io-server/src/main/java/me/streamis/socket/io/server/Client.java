@@ -4,7 +4,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -15,7 +14,6 @@ import me.streamis.socket.io.parser.Packet;
 import me.streamis.socket.io.parser.Packet.PacketType;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -35,8 +33,9 @@ public class Client {
   private Queue<String> connectQueue;
   private Handler<String> onClose = reason -> {
     if (LOGGER.isDebugEnabled()) LOGGER.debug("client close with reason: " + reason);
-    sockets.values().forEach(socket -> ((SIOSocketImpl) socket).onClose(reason));
-    this.sockets.clear();
+    sockets.remove(id);
+    //sockets.values().forEach(socket -> ((SIOSocketImpl) socket).onClose(reason));
+    //this.sockets.clear();
     decoder.destroy();
   };
 
@@ -58,7 +57,7 @@ public class Client {
   }
 
   private void setup() {
-    //onDecoded
+    //TODO onDecoded should be async
     decoder.onDecoded(packet -> {
       if (packet.getType() == PacketType.CONNECT) {
         //TODO
@@ -111,7 +110,7 @@ public class Client {
         }
         this.doConnect(name, query);
       } else {
-        Packet packet = new Packet(PacketType.ERROR, "Invalid namespace");
+        Packet<String> packet = new Packet<>(PacketType.ERROR, "Invalid namespace");
         packet.setNamespace(name);
         this.packet(packet);
       }
@@ -161,9 +160,14 @@ public class Client {
   }
 
   void disconnect() {
-    this.sockets.values().forEach(socket -> socket.disconnect(true));
-    this.sockets.clear();
-    this.close();
+    //  this.sockets.values().forEach(socket -> socket.disconnect(true));
+    //  this.sockets.clear();
+    SIOSocket sioSocket = this.sockets.get(id);
+    if (sioSocket != null) {
+      sioSocket.disconnect(true);
+      this.sockets.remove(id);
+      this.close();
+    }
   }
 
   void remove(SIOSocket sioSocket) {
