@@ -33,10 +33,12 @@ public class Client {
   private Queue<String> connectQueue;
   private Handler<String> onClose = reason -> {
     if (LOGGER.isDebugEnabled()) LOGGER.debug("client close with reason: " + reason);
-    sockets.remove(id);
-    //sockets.values().forEach(socket -> ((SIOSocketImpl) socket).onClose(reason));
-    //this.sockets.clear();
-    decoder.destroy();
+    SIOSocket sioSocket = sockets.get(id);
+    if (sioSocket != null) {
+      ((SIOSocketImpl) sioSocket).onClose(reason);
+      sockets.remove(id);
+      decoder.destroy();
+    }
   };
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Client.class);

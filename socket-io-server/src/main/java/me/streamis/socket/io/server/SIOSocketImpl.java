@@ -11,7 +11,6 @@ import io.vertx.core.logging.LoggerFactory;
 import me.streamis.socket.io.parser.IOParser;
 import me.streamis.socket.io.parser.Packet;
 
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -22,7 +21,6 @@ public class SIOSocketImpl implements SIOSocket {
   private String id;
   private Client client;
   private SIOServer server;
-  private Handshake handshake;
   private Handler<String> disconnectHandler;
   private Map<String, String> rooms;
   private Set<String> roomSet;
@@ -58,19 +56,6 @@ public class SIOSocketImpl implements SIOSocket {
     this.acks = new HashMap<>();
     this.decoder = new IOParser.Decoder();
   }
-
-  private void buildHandshake(HttpServerRequest request) {
-    this.handshake = new Handshake();
-    handshake.headers = request.headers();
-    handshake.time = Instant.now().toString();
-    handshake.address = request.remoteAddress().host();
-    handshake.xdomain = request.headers().get("origin") != null;
-    handshake.secure = request.connection().isSsl();
-    handshake.issued = Instant.now().getEpochSecond();
-    handshake.url = request.uri();
-    handshake.query = request.params();
-  }
-
 
   @Override
   public String id() {
