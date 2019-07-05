@@ -100,7 +100,13 @@ public class SIOSocketImpl implements SIOSocket {
   @Override
   public Emitter emit(String event, Object... args) {
     if (!blackEvents.contains(event) && eventHandlers.containsKey(event)) {
-      eventHandlers.get(event).handle(args);
+      //flat jsonArray data
+      if (args.length == 1 && args[0] instanceof JsonArray) {
+        JsonArray jsonArray = (JsonArray) args[0];
+        eventHandlers.get(event).handle(jsonArray.getList().toArray());
+      } else {
+        eventHandlers.get(event).handle(args);
+      }
       return this;
     }
 
@@ -243,7 +249,7 @@ public class SIOSocketImpl implements SIOSocket {
   }
 
   private void dispatch(JsonArray args) {
-    //TODO
+    //TODO middleware and run on context
     String eventName = (String) args.remove(0);
     emit(eventName, args);
   }

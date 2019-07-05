@@ -6,6 +6,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +60,7 @@ public class Example {
           sioSocket.on("foo", o -> {
             System.out.println("server sio receive event foo");
             Stream.of(o).forEach(System.out::println);
-            sioSocket.emit("chat", "eating.");
+            sioSocket.emit("chat", new JsonObject().put("action", "eating."));
           });
         });
 
@@ -69,7 +70,7 @@ public class Example {
           socket.emit("foo", "hi");
         });
         socket.on("chat", objects1 -> {
-          Stream.of(objects1).forEach(System.out::println);
+          System.out.println("event chat data " + objects1[0]);
         });
         socket.connect();
       }

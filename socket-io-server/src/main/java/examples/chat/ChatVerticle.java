@@ -1,16 +1,13 @@
 package examples.chat;
 
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.StaticHandler;
 import me.streamis.socket.io.server.SIOServer;
-import me.streamis.socket.io.server.SIOSocket;
 import me.streamis.socket.io.server.SocketIOOptions;
 
 import java.util.HashMap;
@@ -23,18 +20,16 @@ public class ChatVerticle extends AbstractVerticle {
   private int userCount = 0;
 
   @Override
-  public void start() throws Exception {
+  public void start() {
     HttpServer httpServer = vertx.createHttpServer();
     Router router = Router.router(vertx);
-    router.get("/").handler(ctx -> {
-      ctx.response().end("this is socket io server powered by vert.x");
-    });
-
+    router.get("/").handler(ctx -> ctx.response().end("this is socket io server powered by vert.x"));
     router.route("/chat/public/*").handler(StaticHandler.create());
     httpServer.requestHandler(router);
 
     sioServer = new SIOServer(vertx, httpServer);
     sioServer.attach(httpServer, router, new SocketIOOptions());
+
     httpServer.listen(3000, event -> {
       if (event.failed()) event.cause().printStackTrace();
       else {
@@ -51,13 +46,13 @@ public class ChatVerticle extends AbstractVerticle {
       System.out.println("server receive connect from client.");
       sioSocket.on("new message", o -> {
         // we tell the client to execute 'new message'
-        String message = ((JsonArray)o[0]).getString(0);
+        String message = (String) o[0];
         sioSocket.broadcast("new message", new JsonObject().put("username", names.get(sioSocket.id())).put("message", message));
       });
 
       sioSocket.on("add user", data -> {
         if (addedUser.get()) return;
-        names.put(sioSocket.id(), ((JsonArray) data[0]).getString(0));
+        names.put(sioSocket.id(), (String) data[0]);
         userCount++;
         addedUser.set(true);
         sioSocket.emit("login", new JsonObject().put("numUsers", userCount));
@@ -95,3 +90,4 @@ public class ChatVerticle extends AbstractVerticle {
     });
   }
 }
+
