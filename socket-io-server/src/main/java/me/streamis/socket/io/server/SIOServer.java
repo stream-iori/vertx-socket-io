@@ -46,7 +46,7 @@ public class SIOServer {
 
 
   //TODO engineOptions
-  public SIOServer attach(HttpServer httpServer, Handler<HttpServerRequest> handler, SocketIOOptions socketIOOptions) {
+  public SIOServer attach(Handler<HttpServerRequest> handler, SocketIOOptions socketIOOptions) {
     EngineOptions engineOptions = new EngineOptions();
     engineOptions.setPath(socketIOOptions.getPath());
     //TODO allow request
@@ -54,15 +54,14 @@ public class SIOServer {
     connectPacket.setNamespace("/");
     this.encoder.encode(connectPacket, encodedPacket -> {
       engineOptions.setInitialPacket(((String[]) encodedPacket)[0]);
-      this.initEngine(httpServer, handler, engineOptions);
+      this.initEngine(handler, engineOptions);
     });
     return this;
   }
 
-  private void initEngine(HttpServer httpServer, Handler<HttpServerRequest> httpServerRequestHandler, EngineOptions engineOptions) {
+  private void initEngine(Handler<HttpServerRequest> httpServerRequestHandler, EngineOptions engineOptions) {
     if (LOGGER.isDebugEnabled()) LOGGER.debug("creating engine.io instance with opts " + engineOptions);
     this.eioServer = new EIOServerImpl(vertx, engineOptions).attach(httpServer, httpServerRequestHandler);
-    this.httpServer = httpServer;
     this.bind(eioServer);
   }
 

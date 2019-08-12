@@ -1,6 +1,7 @@
 package me.streamis.socket.io.server;
 
 import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
 import me.streamis.socket.io.parser.Packet;
 
 public interface SIOSocket extends Emitter {
@@ -8,6 +9,8 @@ public interface SIOSocket extends Emitter {
   String id();
 
   Namespace namespace();
+
+  MultiMap query();
 
   SIOSocket on(String event, Handler<Object[]> messageHandler);
 

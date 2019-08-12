@@ -20,6 +20,7 @@ public class SIOSocketImpl implements SIOSocket {
   private Namespace namespace;
   private String id;
   private Client client;
+  private MultiMap query;
   private SIOServer server;
   private Handler<String> disconnectHandler;
   private Map<String, String> rooms;
@@ -31,12 +32,12 @@ public class SIOSocketImpl implements SIOSocket {
   private boolean connected;
   private boolean disconnected;
 
-  List<Handler<Throwable>> errorHandlers = new ArrayList<>();
+  private List<Handler<Throwable>> errorHandlers = new ArrayList<>();
 
   //
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SIOSocketImpl.class);
-  static Set<String> blackEvents = new HashSet<String>() {{
+  private static Set<String> blackEvents = new HashSet<String>() {{
     add("error");
     add("connect");
     add("disconnect");
@@ -51,6 +52,7 @@ public class SIOSocketImpl implements SIOSocket {
     this.connected = true;
     this.namespace = namespace;
     this.id = namespace.getName().equals("/") ? client.id : namespace.getName() + "#" + client.id;
+    this.query = query;
     this.rooms = new HashMap<>();
     this.roomSet = new HashSet<>();
     this.acks = new HashMap<>();
@@ -65,6 +67,11 @@ public class SIOSocketImpl implements SIOSocket {
   @Override
   public Namespace namespace() {
     return namespace;
+  }
+
+  @Override
+  public MultiMap query() {
+    return this.query;
   }
 
   @Override

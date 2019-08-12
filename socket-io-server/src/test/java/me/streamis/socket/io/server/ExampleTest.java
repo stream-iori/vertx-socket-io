@@ -47,7 +47,7 @@ public class ExampleTest {
 
     httpServer = vertx.createHttpServer();
     sioServer = new SIOServer(vertx, httpServer);
-    sioServer.attach(httpServer, requestHandler, new SocketIOOptions());
+    sioServer.attach(requestHandler, new SocketIOOptions());
     httpServer.listen(3000, ar -> {
       System.out.println("socket io server start at 3000.");
       assertTrue(ar.succeeded());

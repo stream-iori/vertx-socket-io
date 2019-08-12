@@ -3,7 +3,6 @@ package examples.chat;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.StaticHandler;
@@ -28,13 +27,13 @@ public class ChatVerticle extends AbstractVerticle {
     httpServer.requestHandler(router);
 
     sioServer = new SIOServer(vertx, httpServer);
-    sioServer.attach(httpServer, router, new SocketIOOptions());
+    sioServer.attach(router, new SocketIOOptions());
+    initSIOServer();
 
     httpServer.listen(3000, event -> {
       if (event.failed()) event.cause().printStackTrace();
       else {
         System.out.println("3000 up");
-        initSIOServer();
       }
     });
 
