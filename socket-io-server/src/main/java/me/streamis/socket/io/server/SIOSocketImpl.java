@@ -69,7 +69,7 @@ public class SIOSocketImpl implements SIOSocket {
 
   @Override
   public MultiMap query() {
-    return this.client.conn.getTransport().getRequest().params();
+    return this.client.query;
   }
 
   @Override

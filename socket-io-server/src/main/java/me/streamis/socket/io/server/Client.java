@@ -22,6 +22,7 @@ public class Client {
 
   String id;
   EIOSocket conn;
+  MultiMap query;
   private Vertx vertx;
   private SIOServer server;
   private IOParser.Decoder decoder;
@@ -100,6 +101,7 @@ public class Client {
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug("connecting to namespace " + name);
       }
+      this.query = query;
       doConnect(name, query);
       return;
     }

@@ -38,6 +38,7 @@ public class ExampleTest {
 
   private Socket createSocketIOClient() {
     IO.Options opts = new IO.Options();
+    opts.query = "auth=1";
     opts.forceNew = true;
     opts.reconnection = false;
     return IO.socket(URI.create("http://localhost:3000"), opts);
@@ -91,6 +92,7 @@ public class ExampleTest {
     VertxTestContext testContext = new VertxTestContext();
     //select default namespace
     sioServer.of("/chats").onConnect(sioSocket -> {
+      System.out.println(sioSocket.query().toString());
       sioSocket.on("foo", o -> {
         assertEquals("hi", o[0]);
         sioSocket.emit("chat", new JsonObject().put("action", "eating."));
