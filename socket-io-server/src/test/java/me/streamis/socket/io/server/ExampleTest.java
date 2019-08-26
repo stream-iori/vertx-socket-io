@@ -29,6 +29,13 @@ public class ExampleTest {
   private SIOServer sioServer;
   private Vertx vertx = Vertx.vertx();
 
+  static {
+    System.setProperty(
+      "vertx.logger-delegate-factory-class-name",
+      "io.vertx.core.logging.SLF4JLogDelegateFactory"
+    );
+  }
+
   private Socket createSocketIOClient() {
     IO.Options opts = new IO.Options();
     opts.forceNew = true;
@@ -83,7 +90,7 @@ public class ExampleTest {
   public void eventEmitAndOn() throws InterruptedException {
     VertxTestContext testContext = new VertxTestContext();
     //select default namespace
-    sioServer.of("/").onConnect(sioSocket -> {
+    sioServer.of("/chats").onConnect(sioSocket -> {
       sioSocket.on("foo", o -> {
         assertEquals("hi", o[0]);
         sioSocket.emit("chat", new JsonObject().put("action", "eating."));
@@ -91,20 +98,28 @@ public class ExampleTest {
     });
 
     //
-    Socket clientSocket = createSocketIOClient();
+    Socket clientSocket = createSocketIOClient().io().socket("/chats");
+
     clientSocket.on(Socket.EVENT_CONNECT, objects -> {
       clientSocket.emit("foo", "hi");
     });
     clientSocket.on("chat", objects1 -> {
       try {
-        assertEquals(((JSONObject)objects1[0]).getString("action"), "eating.");
+        assertEquals(((JSONObject) objects1[0]).getString("action"), "eating.");
       } catch (JSONException e) {
         testContext.failNow(e);
       }
       testContext.completeNow();
     });
+    clientSocket.once(Socket.EVENT_DISCONNECT, objects -> {
+      System.out.println("disconnect.");
+    });
+    clientSocket.on(Socket.EVENT_ERROR, objects -> {
+      System.out.println("client socket error.");
+    });
+
     clientSocket.connect();
 
-    assertThat(testContext.awaitCompletion(5, TimeUnit.SECONDS)).isTrue();
+    assertThat(testContext.awaitCompletion(3, TimeUnit.SECONDS)).isTrue();
   }
 }

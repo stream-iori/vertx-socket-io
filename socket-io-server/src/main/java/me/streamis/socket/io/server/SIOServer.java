@@ -36,7 +36,22 @@ public class SIOServer {
 
   //TODO middleware
   void checkNamespace(String name, MultiMap query, Consumer<Namespace> consumer) {
-    if (this.parentNamespaces.size() == 0) consumer.accept(null);
+//    if (this.parentNamespaces.size() == 0) consumer.accept(null);
+//    ParentNamespace namespace = this.parentNamespaces.get(name);
+//    if (namespace != null) consumer.accept(namespace);
+//    else {
+//      namespace = new ParentNamespace(vertx, this);
+//      consumer.accept(namespace.createChild(name));
+//    }
+
+    NamespaceImpl namespace = namespaces.get(name);
+    if (namespace != null) {
+      consumer.accept(namespace);
+    } else {
+      namespace = new NamespaceImpl(vertx, this, name);
+      namespaces.put(name, namespace);
+    }
+
   }
 
   public SIOServer connectionHandler(Handler<SIOSocket> handler) {
@@ -60,7 +75,9 @@ public class SIOServer {
   }
 
   private void initEngine(Handler<HttpServerRequest> httpServerRequestHandler, EngineOptions engineOptions) {
-    if (LOGGER.isDebugEnabled()) LOGGER.debug("creating engine.io instance with opts " + engineOptions);
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug("creating engine.io instance with opts " + engineOptions);
+    }
     this.eioServer = new EIOServerImpl(vertx, engineOptions).attach(httpServer, httpServerRequestHandler);
     this.bind(eioServer);
   }
@@ -70,13 +87,15 @@ public class SIOServer {
     return this;
   }
 
-  //TODO nsp connection event
   public Namespace of(String name) {
+    //TODO parentNamespace
+
     if (!name.startsWith("/")) name = "/" + name;
     NamespaceImpl namespace = this.namespaces.get(name);
     if (namespace == null) {
-      if (LOGGER.isDebugEnabled()) LOGGER.debug("initializing parent namespace " + name);
-      namespace = new NamespaceImpl(vertx, this, name);
+      if (LOGGER.isDebugEnabled()) LOGGER.debug("initializing namespace " + name);
+      namespace = new NamespaceImpl(vertx, this);
+      namespace.name = name;
       this.namespaces.put(name, namespace);
     }
     return namespace;

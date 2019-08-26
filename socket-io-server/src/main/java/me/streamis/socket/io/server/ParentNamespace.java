@@ -4,18 +4,19 @@ import io.vertx.core.Vertx;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ParentNamespace extends NamespaceImpl {
 
   private Vertx vertx;
-  private long count = 0;
+  private AtomicLong count = new AtomicLong(0);
   //TODO multi instance
   private Set<Namespace> children = new HashSet<>();
 
   public ParentNamespace(Vertx vertx, SIOServer server) {
     super(vertx, server);
     this.vertx = vertx;
-    this.name = "/_" + (count++);
+    this.name = "/_" + (count.getAndIncrement());
   }
 
   @Override

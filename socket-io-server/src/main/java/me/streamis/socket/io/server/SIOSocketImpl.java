@@ -20,7 +20,6 @@ public class SIOSocketImpl implements SIOSocket {
   private Namespace namespace;
   private String id;
   private Client client;
-  private MultiMap query;
   private SIOServer server;
   private Handler<String> disconnectHandler;
   private Map<String, String> rooms;
@@ -46,13 +45,12 @@ public class SIOSocketImpl implements SIOSocket {
     add("removeListener");
   }};
 
-  public SIOSocketImpl(Vertx vertx, SIOServer sioServer, Namespace namespace, Client client, MultiMap query) {
+  public SIOSocketImpl(Vertx vertx, SIOServer sioServer, Namespace namespace, Client client) {
     this.client = client;
     this.server = sioServer;
     this.connected = true;
     this.namespace = namespace;
     this.id = namespace.getName().equals("/") ? client.id : namespace.getName() + "#" + client.id;
-    this.query = query;
     this.rooms = new HashMap<>();
     this.roomSet = new HashSet<>();
     this.acks = new HashMap<>();
@@ -71,7 +69,7 @@ public class SIOSocketImpl implements SIOSocket {
 
   @Override
   public MultiMap query() {
-    return this.query;
+    return this.client.conn.getTransport().getRequest().params();
   }
 
   @Override

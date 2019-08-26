@@ -30,4 +30,6 @@ public interface Namespace extends Emitter {
 
   void remove(SIOSocket sioSocket);
 
+
+
 }

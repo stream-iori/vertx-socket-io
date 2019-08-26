@@ -1,13 +1,15 @@
 package me.streamis.socket.io.server;
 
 import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import me.streamis.engine.io.server.State;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public class NamespaceImpl implements Namespace {
@@ -42,7 +44,6 @@ public class NamespaceImpl implements Namespace {
     this.name = name;
   }
 
-
   @Override
   public String getName() {
     return name;
@@ -54,9 +55,9 @@ public class NamespaceImpl implements Namespace {
     return this;
   }
 
-  void add(Client client, MultiMap query, Consumer<SIOSocket> consumer) {
+  void add(Client client, Consumer<SIOSocket> consumer) {
     if (LOGGER.isDebugEnabled()) LOGGER.debug("add socket to nsp " + this.name);
-    SIOSocket sioSocket = new SIOSocketImpl(vertx, server, this, client, query);
+    SIOSocket sioSocket = new SIOSocketImpl(vertx, server, this, client);
     //TODO middleware
     vertx.runOnContext(aVoid -> {
       if (client.conn.getState() == State.OPEN) {
@@ -86,8 +87,9 @@ public class NamespaceImpl implements Namespace {
   public Emitter emit(String event, Object... args) {
     if (!blackEvents.contains(event) && eventHandler.containsKey(event)) {
       eventHandler.get(event).handle(args);
+      return this;
     }
     //TODO broadcast with MessageProducer
-    return this;
+    throw new UnsupportedOperationException("do not support broadcast ");
   }
 }

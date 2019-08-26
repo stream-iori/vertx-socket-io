@@ -13,11 +13,13 @@ import org.slf4j.LoggerFactory;
 public class Example {
   private static final Logger logger = LoggerFactory.getLogger(Example.class);
 
-  public static void main(String[] args) {
+  static {
     System.setProperty(
       "vertx.logger-delegate-factory-class-name",
       "io.vertx.core.logging.SLF4JLogDelegateFactory"
     );
+  }
+  public static void main(String[] args) {
     Vertx vertx = Vertx.vertx();
 
     Handler<HttpServerRequest> requestHandler = request -> {

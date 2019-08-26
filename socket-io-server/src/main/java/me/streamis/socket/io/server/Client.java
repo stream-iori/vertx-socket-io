@@ -4,7 +4,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import me.streamis.engine.io.server.EIOSocket;
@@ -25,7 +24,6 @@ public class Client {
   EIOSocket conn;
   private Vertx vertx;
   private SIOServer server;
-  private HttpServerRequest request;
   private IOParser.Decoder decoder;
   private IOParser.Encoder encoder;
   private Map<String, SIOSocket> sockets;
@@ -50,7 +48,6 @@ public class Client {
     this.server = sioServer;
     this.decoder = new IOParser.Decoder();
     this.encoder = new IOParser.Encoder();
-    this.request = conn.getTransport().getRequest();
     //TODO
     this.sockets = new HashMap<>();
     this.namespaces = new HashMap<>();
@@ -63,9 +60,11 @@ public class Client {
     decoder.onDecoded(packet -> {
       if (packet.getType() == PacketType.CONNECT) {
         //TODO
-        this.connect(packet.getNamespace(), request.params());
+        this.connect(packet.getNamespace(), conn.getTransport().getRequest().params());
       } else {
+        //packet from client for namespace.
         SIOSocket socket = this.namespaces.get(packet.getNamespace());
+        if (LOGGER.isDebugEnabled()) LOGGER.debug("decode packet from client. " + packet);
         if (socket != null) {
           this.vertx.runOnContext(aVoid -> ((SIOSocketImpl) socket).onPacket(packet));
         } else {
@@ -117,20 +116,18 @@ public class Client {
         this.packet(packet);
       }
     });
-
   }
 
   private void doConnect(String name, MultiMap query) {
     Namespace namespace = this.server.of(name);
     if (!name.equals("/") && !this.namespaces.containsKey(name)) {
       this.connectQueue.offer(name);
-      return;
+      //return;
     }
 
-    ((NamespaceImpl) namespace).add(this, query, sioSocket -> {
+    ((NamespaceImpl) namespace).add(this, sioSocket -> {
       sockets.put(sioSocket.id(), sioSocket);
       namespaces.put(namespace.getName(), sioSocket);
-
       if (namespace.getName().equals("/") && connectQueue.size() > 0) {
         String nsp;
         while ((nsp = connectQueue.poll()) != null) connect(nsp, query);

@@ -41,6 +41,9 @@ public class ChatVerticle extends AbstractVerticle {
 
   private void initSIOServer() {
     sioServer.of("/").onConnect(sioSocket -> {
+      sioSocket.query().forEach(entry -> {
+        System.out.println(entry.getKey() + " -> " + entry.getValue());
+      });
       AtomicBoolean addedUser = new AtomicBoolean(false);
       System.out.println("server receive connect from client.");
       sioSocket.on("new message", o -> {

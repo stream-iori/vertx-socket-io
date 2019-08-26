@@ -161,5 +161,23 @@ public class EngineOptions {
     return this;
   }
 
-
+  @Override
+  public String toString() {
+    return "EngineOptions{" +
+      "wsEngine='" + wsEngine + '\'' +
+      ", pingTimeout=" + pingTimeout +
+      ", pingInterval=" + pingInterval +
+      ", upgradeTimeout=" + upgradeTimeout +
+      ", path='" + path + '\'' +
+      ", maxHttpBufferSize=" + maxHttpBufferSize +
+      ", allowedCorsOrigins=" + Arrays.toString(allowedCorsOrigins) +
+      ", initialPacket='" + initialPacket + '\'' +
+      ", handlePreflightRequest=" + handlePreflightRequest +
+      ", transports=" + transports +
+      ", allowUpgrades=" + allowUpgrades +
+      ", cookie='" + cookie + '\'' +
+      ", cookiePath='" + cookiePath + '\'' +
+      ", cookieHttpOnly=" + cookieHttpOnly +
+      '}';
+  }
 }

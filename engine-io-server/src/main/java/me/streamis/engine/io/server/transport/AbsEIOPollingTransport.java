@@ -56,20 +56,24 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
 
   @Override
   public HttpServerRequest getRequest() {
-    return this.request;
+    return this.dataRequest;
   }
 
   /**
    * The client sends a request awaiting for us to send data.
    */
   private void onPollRequest(HttpServerRequest request) {
-    if (this.request == request) {
-      onError(new TransportException("overlap from client"));
+    if (this.request != null) {
+      LOGGER.debug("request overlap");
+      this.onError(new TransportException("overlap from client."));
       request.response().setStatusCode(500).end();
       return;
     }
     this.request = request;
-    request.connection().closeHandler(aVoid -> onError(new TransportException("poll connection closed prematurely.")));
+    this.request.connection().closeHandler(aVoid -> {
+      this.request = null;
+      onError(new TransportException("poll connection closed prematurely."));
+    });
     this.writable = true;
     if (drainHandlers.size() > 0) {
       drainHandlers.forEach(h -> h.handle(null));
@@ -86,8 +90,8 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
    * The client sends a request with data.
    */
   private void onDataRequest(HttpServerRequest request) {
-    if (this.dataRequest == request) {
-      onError(new TransportException("data request overlap from client."));
+    if (this.dataRequest != null) {
+      this.onError(new TransportException("data request overlap from client."));
       request.response().setStatusCode(500).end();
       return;
     }
@@ -103,7 +107,7 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
       request.response().putHeader("Content-Type", "text/html");
       if (!isBinary) request.response().putHeader("charset", "utf-8");
       headers(request);
-      request.response().setStatusCode(200).end("ok");
+      this.dataRequest.response().setStatusCode(200).end("ok");
       this.dataRequest = null;
     });
   }
@@ -156,9 +160,8 @@ abstract class AbsEIOPollingTransport extends AbsEIOTransport implements EIOTran
     } else {
       response.end(data.toString());
     }
-    //data have been write,so cleanup the request which in GET method.
-    LOGGER.debug("send message." + data);
     this.request = null;
+    if(LOGGER.isDebugEnabled()) LOGGER.debug("send message." + data);
   }
 
   @Override
